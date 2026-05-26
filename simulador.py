@@ -12,9 +12,9 @@ st.set_page_config(page_title="Simulador Industrial Kopempack", layout="wide")
 
 st.markdown("""
 <style>
-    [data-testid="stAppViewContainer"] { background-color: #070B14; }
+    [data-testid="stAppViewContainer"] { background-color: #070B14; color: white; }
     .stButton > button { background: #2563EB !important; color: white !important; border: none !important; }
-    .panel { background: #151E2E; padding: 20px; border-radius: 8px; border: 1px solid #1E293B; }
+    .control-panel { background: #0B111C; padding: 20px; border-radius: 12px; border: 1px solid #182234; margin-bottom: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -33,66 +33,71 @@ def init_firebase():
 db = init_firebase()
 
 # =========================================================
-# LOGICA DE SIMULAÇÃO
+# FUNÇÕES DE INFRAESTRUTURA
 # =========================================================
-st.title("⚙️ Simulador de Planta Industrial")
-st.markdown("Gerador de telemetria para validação do sistema supervisório.")
+def inicializar_planta():
+    ativos_padrao = [
+        {"nome": "Cilindro Linha A-01", "clp": "SIM_CLP_01", "vib": "SIM_VIB_01"},
+        {"nome": "Cilindro Selagem B-04", "clp": "SIM_CLP_02", "vib": "SIM_VIB_02"},
+        {"nome": "Cilindro Rotativo C-07", "clp": "SIM_CLP_03", "vib": "SIM_VIB_03"}
+    ]
+    for ativo in ativos_padrao:
+        db.collection('cilindros_ativos').add({
+            "nome_identificacao": ativo['nome'],
+            "tag_clp_vinculada": ativo['clp'],
+            "id_sensor_vinculado": ativo['vib'],
+            "estado_integridade": "ORIGINAL",
+            "ciclos_acumulados": 0,
+            "rul_percentual": 100,
+            "status": "NORMAL"
+        })
+    st.success("Planta virtual inicializada com 3 ativos padrão.")
+    st.rerun()
 
-col1, col2 = st.columns([1, 2])
+# =========================================================
+# LÓGICA DE SIMULAÇÃO
+# =========================================================
+st.title("⚙️ Simulador de Processos Industrial")
 
-with col1:
-    st.markdown("### Configurações de Ativo")
-    tag_clp = st.selectbox("Simular Tag CLP:", ["SIM_CLP_01", "SIM_CLP_02", "SIM_CLP_03", "SIM_CLP_04", "SIM_CLP_05"])
-    tag_vib = st.selectbox("Simular Sensor Vibração:", ["SIM_VIB_01", "SIM_VIB_02", "SIM_VIB_03", "SIM_VIB_04", "SIM_VIB_05"])
-    
-    ciclos = st.number_input("Número de Ciclos a Gerar", min_value=1, max_value=100, value=10)
-    delay_falha = st.slider("Atraso de Desgaste (ms)", 0, 500, 0)
-    vib_anomalia = st.slider("Intensidade da Vibração (mm/s)", 1.0, 10.0, 2.0)
+ativos = list(db.collection('cilindros_ativos').stream())
+if not ativos:
+    st.warning("Nenhum ativo detectado na nuvem.")
+    if st.button("Inicializar Planta Virtual (Bootstrapping)"):
+        inicializar_planta()
+    st.stop()
 
-with col2:
-    st.markdown("### Console de Execução")
-    if st.button("Iniciar Geração de Dados", type="primary"):
-        progresso = st.progress(0)
-        status_text = st.empty()
-        
-        for i in range(ciclos):
-            status_text.text(f"Gerando ciclo {i+1} de {ciclos} para {tag_clp}...")
-            agora = datetime.now(timezone.utc).isoformat()
-            
-            # Payload CLP
-            payload_clp = {
-                "nome_identificacao": "Cilindro Simulado",
-                "tag_clp_vinculada": tag_clp,
-                "ciclos_acumulados": i + 1,
-                "tempo_avanco_ms": round(1200 + delay_falha + random.uniform(-10, 10), 2),
-                "tempo_retorno_ms": round(1100 + random.uniform(-10, 10), 2),
-                "timestamp": agora,
-                "status": "NORMAL" if delay_falha < 200 else "ATENÇÃO"
-            }
-            
-            # Payload Vibração
-            payload_vib = {
-                "id_sensor_vinculado": tag_vib,
-                "vibracao_rms": round(vib_anomalia + random.uniform(-0.5, 0.5), 2),
-                "timestamp": agora
-            }
-            
-            # Gravação no Firestore (Telemetria)
-            db.collection('telemetria_clp').add(payload_clp)
-            db.collection('telemetria_vib').add(payload_vib)
-            
-            # Atualização de status no cilindro pai para o Dashboard ler
-            docs = db.collection('cilindros_ativos').where('tag_clp_vinculada', '==', tag_clp).stream()
-            for doc in docs:
-                db.collection('cilindros_ativos').document(doc.id).update({
-                    "ciclos_acumulados": i + 1,
-                    "status": "ATENÇÃO" if delay_falha > 200 else "NORMAL"
-                })
-            
-            progresso.progress((i + 1) / ciclos)
-            time.sleep(0.5)
-            
-        status_text.success("Lote de telemetria enviado com sucesso ao Firebase.")
+# Se houver ativos, segue o fluxo normal
+ativos_data = [{'id_documento': a.id, **a.to_dict()} for a in ativos]
+
+if 'running' not in st.session_state: st.session_state.running = False
+
+c_btn1, c_btn2 = st.columns([1, 10])
+if c_btn1.button("▶️ RUN"): st.session_state.running = True
+if c_btn1.button("⏹️ STOP"): st.session_state.running = False
 
 st.markdown("---")
-st.info("Nota: Este app não possui interface de visualização. Ele serve apenas como injetor de dados para que o 'Sistema Supervisório Central' os processe.")
+
+for ativo in ativos_data:
+    with st.container():
+        st.markdown(f'<div class="control-panel">', unsafe_allow_html=True)
+        col1, col2, col3 = st.columns([2, 1, 1])
+        col1.subheader(f"Ativo: {ativo['nome_identificacao']}")
+        vib = col2.slider(f"Vibração (mm/s)", 1.0, 10.0, 2.0, key=f"vib_{ativo['id_documento']}")
+        atraso = col3.slider(f"Atraso Ciclo (ms)", 0, 500, 0, key=f"atraso_{ativo['id_documento']}")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+if st.session_state.running:
+    for ativo in ativos_data:
+        # Lógica de ciclo
+        atraso = st.session_state[f"atraso_{ativo['id_documento']}"]
+        ciclos_novos = ativo.get('ciclos_acumulados', 0) + 1
+        
+        # Atualização no Firebase
+        db.collection('cilindros_ativos').document(ativo['id_documento']).update({
+            "ciclos_acumulados": ciclos_novos,
+            "rul_percentual": max(0, 100 - (ciclos_novos // 50)),
+            "status": "ATENÇÃO" if atraso > 200 else "NORMAL"
+        })
+    
+    time.sleep(0.5)
+    st.rerun()
