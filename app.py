@@ -4,64 +4,62 @@ from firebase_admin import credentials, firestore
 import pandas as pd
 from datetime import datetime, timezone
 
-# 1. CONFIGURAÇÃO DA PÁGINA E TÍTULO DO APP
+# ==========================================
+# 1. CONFIGURAÇÃO DA PÁGINA (Obrigatório ser o primeiro comando)
+# ==========================================
 st.set_page_config(
     page_title="Sistema Supervisório - Kopempack",
     page_icon="⚙️",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# 2. ESTILO E LOGOTIPO
-def aplicar_branding():
-    # Título Principal na Tela
-    st.title("Sistema Supervisório - Kopempack")
+# ==========================================
+# 2. DESIGN DE INTERFACE (CSS) E BRANDING
+# ==========================================
+st.markdown("""
+    <style>
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
     
-    # Logotipo na Sidebar (Utilizando um ícone industrial como fallback)
-    # Dica: Substitua 'logo.png' pelo caminho do seu arquivo local
-    try:
-        st.sidebar.image("logo.png", width=200)
-    except:
-        st.sidebar.markdown("## ⚙️ **KOPEMPACK**")
-        st.sidebar.markdown("---")
-        
-# 2. INJEÇÃO DE CSS CUSTOMIZADO (Design de Interface)
-def aplicar_estilo_ui():
-    st.markdown("""
-        <style>
-        /* Oculta os elementos padrão do Streamlit para aspecto de software standalone */
-        #MainMenu {visibility: hidden;}
-        header {visibility: hidden;}
-        footer {visibility: hidden;}
-        
-        /* Estilização dos Cards de KPI (st.metric) */
-        div[data-testid="metric-container"] {
-            background-color: #1A1C24;
-            border: 1px solid #2A2D3D;
-            padding: 15px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-            border-left: 4px solid #3b82f6;
-        }
-        
-        /* Títulos e espaçamentos */
-        h1, h2, h3 {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            font-weight: 600;
-        }
-        
-        /* Linhas divisórias personalizadas */
-        hr {
-            margin-top: 1rem;
-            margin-bottom: 2rem;
-            border: 0;
-            border-top: 1px solid #2A2D3D;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+    div[data-testid="metric-container"] {
+        background-color: #1A1C24;
+        border: 1px solid #2A2D3D;
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        border-left: 4px solid #3b82f6;
+    }
+    
+    h1, h2, h3 {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-weight: 600;
+    }
+    
+    hr {
+        margin-top: 1rem;
+        margin-bottom: 2rem;
+        border: 0;
+        border-top: 1px solid #2A2D3D;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-aplicar_estilo_ui()
+# Título de Cabeçalho do Sistema
+st.markdown("# ⚙️ Sistema Supervisório - Kopempack")
 
+# Renderização do Logotipo na Barra Lateral
+try:
+    st.sidebar.image("logo.png", use_container_width=True)
+except Exception:
+    st.sidebar.markdown("## ⚙️ **KOPEMPACK**")
+
+st.sidebar.markdown("---")
+
+# ==========================================
 # 3. INICIALIZAÇÃO DO FIREBASE
+# ==========================================
 @st.cache_resource
 def init_firebase():
     if not firebase_admin._apps:
@@ -73,7 +71,9 @@ def init_firebase():
 
 db = init_firebase()
 
+# ==========================================
 # 4. FUNÇÕES DE BANCO DE DADOS
+# ==========================================
 def buscar_cilindros():
     docs = db.collection('cilindros_ativos').stream()
     lista_cilindros = []
@@ -89,9 +89,11 @@ def registrar_cilindro(payload):
 def atualizar_status_cilindro(id_documento, campos_atualizados):
     db.collection('cilindros_ativos').document(id_documento).update(campos_atualizados)
 
+# ==========================================
 # 5. TELAS DO APLICATIVO
+# ==========================================
 def tela_visao_geral():
-    st.title("📊 Visão Geral da Planta")
+    st.subheader("📊 Visão Geral da Planta")
     st.markdown("Monitoramento em tempo real dos ativos pneumáticos.")
     st.divider()
     
@@ -102,7 +104,6 @@ def tela_visao_geral():
         return
 
     df = pd.DataFrame(cilindros)
-    
     total = len(df)
     
     if 'status' not in df.columns:
@@ -126,11 +127,10 @@ def tela_visao_geral():
     df_exibicao = df[colunas_presentes].copy()
     df_exibicao.columns = ['Identificação', 'Tag CLP', 'Integridade', 'RUL (%)', 'Status']
     
-    # Exibe a tabela ocultando o índice numérico padrão do Pandas
     st.dataframe(df_exibicao, use_container_width=True, hide_index=True)
 
 def tela_comissionamento():
-    st.title("⚙️ Comissionamento de Novo Hardware")
+    st.subheader("⚙️ Comissionamento de Novo Hardware")
     st.markdown("Identificação e vínculo de dispositivos recém-descobertos na rede industrial.")
     st.divider()
     
@@ -170,10 +170,10 @@ def tela_comissionamento():
             "data_registro": datetime.now(timezone.utc).isoformat()
         }
         registrar_cilindro(payload)
-        st.success(f"Ativo '{nome_identificacao}' registrado com sucesso. Iniciando em Modo de Aprendizado.")
+        st.success(f"Ativo '{nome_identificacao}' registrado com sucesso.")
 
 def tela_diagnostico():
-    st.title("🔍 Diagnóstico e Gestão de Vida Útil")
+    st.subheader("🔍 Diagnóstico e Gestão de Vida Útil")
     st.markdown("Análise técnica individual e registro de intervenções.")
     st.divider()
     
@@ -196,7 +196,6 @@ def tela_diagnostico():
     
     st.divider()
     st.markdown("### Ações de Intervenção de Manutenção")
-    st.markdown("Execute comandos para atualizar a lógica de cálculo após intervenções físicas.")
     st.markdown("<br>", unsafe_allow_html=True)
     
     col_acao1, col_acao2, col_acao3 = st.columns(3)
@@ -204,7 +203,7 @@ def tela_diagnostico():
     with col_acao1:
         if st.button("Forçar Recalibragem de Tempos", use_container_width=True):
             atualizar_status_cilindro(id_doc, {"modo_aprendizado_concluido": False})
-            st.info("Baseline invalidada. Aguardando novos ciclos para recálculo.")
+            st.info("Baseline invalidada.")
             
     with col_acao2:
         tipo_intervencao = st.selectbox("Tipo de Intervenção", ["Manutenção (Reparo)", "Troca Integral (Substituição)"], label_visibility="collapsed")
@@ -216,21 +215,21 @@ def tela_diagnostico():
                     "rul_percentual": 100,
                     "modo_aprendizado_concluido": False
                 })
-                st.success("Histórico logístico zerado. Ativo operando como novo.")
+                st.success("Histórico logístico zerado.")
             else:
                 atualizar_status_cilindro(id_doc, {"estado_integridade": "REPARADO"})
-                st.warning("Status de integridade rebaixado para REPARADO.")
+                st.warning("Status alterado para REPARADO.")
                 
     with col_acao3:
         if st.button("Registrar Falha Crítica / Quebra", type="primary", use_container_width=True):
-            st.error("Falha registrada. O MTBF contextual deste local será recalculado.")
+            st.error("Falha registrada.")
 
+# ==========================================
 # 6. ROTEAMENTO DE NAVEGAÇÃO LATERAL
-st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/2/2f/Logo_SENAI.svg", width=150)
-st.sidebar.markdown("<br>", unsafe_allow_html=True)
-
+# ==========================================
+st.sidebar.markdown("### MENU DE OPERAÇÃO")
 menu = st.sidebar.radio(
-    "MENU DE OPERAÇÃO:", 
+    "Selecione o módulo:", 
     ["📊 Visão Geral", "⚙️ Comissionamento", "🔍 Diagnóstico Individual"]
 )
 
