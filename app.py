@@ -4,14 +4,26 @@ from firebase_admin import credentials, firestore
 import pandas as pd
 from datetime import datetime, timezone
 
-# 1. CONFIGURAÇÃO DA PÁGINA
+# 1. CONFIGURAÇÃO DA PÁGINA E TÍTULO DO APP
 st.set_page_config(
-    page_title="Monitoramento Preditivo | Kopempack",
+    page_title="Sistema Supervisório - Kopempack",
     page_icon="⚙️",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
+# 2. ESTILO E LOGOTIPO
+def aplicar_branding():
+    # Título Principal na Tela
+    st.title("Sistema Supervisório - Kopempack")
+    
+    # Logotipo na Sidebar (Utilizando um ícone industrial como fallback)
+    # Dica: Substitua 'logo.png' pelo caminho do seu arquivo local
+    try:
+        st.sidebar.image("logo.png", width=200)
+    except:
+        st.sidebar.markdown("## ⚙️ **KOPEMPACK**")
+        st.sidebar.markdown("---")
+        
 # 2. INJEÇÃO DE CSS CUSTOMIZADO (Design de Interface)
 def aplicar_estilo_ui():
     st.markdown("""
