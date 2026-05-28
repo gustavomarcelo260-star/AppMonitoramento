@@ -2,7 +2,6 @@ import streamlit as st
 import firebase_admin
 from firebase_admin import credentials, firestore
 from streamlit_option_menu import option_menu
-from st_aggrid import AgGrid, GridOptionsBuilder
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -18,17 +17,16 @@ st.set_page_config(
 )
 
 # =========================================================
-# CSS GLOBAL - TESLA OPS STYLE
+# CSS GLOBAL - TESLA & LOVABLE DARK OPS STYLE
 # =========================================================
 st.markdown("""
 <style>
-
-/* =========================================================
-BACKGROUND
-========================================================= */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 html, body, [class*="css"] {
-    font-family: "Segoe UI", sans-serif;
+    font-family: 'Inter', sans-serif;
+    background-color: #070B14 !important;
+    color: #F1F5F9;
 }
 
 [data-testid="stAppViewContainer"] {
@@ -39,213 +37,165 @@ html, body, [class*="css"] {
     background: rgba(0,0,0,0);
 }
 
-#MainMenu {
+#MainMenu, footer {
     visibility: hidden;
 }
 
-footer {
-    visibility: hidden;
-}
-
-/* =========================================================
-SIDEBAR
-========================================================= */
-
+/* SIDEBAR */
 [data-testid="stSidebar"] {
     background: #0B111C;
     border-right: 1px solid #182234;
 }
 
 .sidebar-logo {
-    text-align:center;
-    padding-top:10px;
-    padding-bottom:20px;
+    text-align: center;
+    padding-top: 10px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #182234;
+    margin-bottom: 20px;
 }
 
 .sidebar-title {
-    color:white;
-    font-size:22px;
-    font-weight:700;
-    margin-top:15px;
+    color: white;
+    font-size: 22px;
+    font-weight: 700;
+    margin-top: 15px;
+    letter-spacing: 0.15em;
 }
 
 .sidebar-subtitle {
-    color:#6E7C93;
-    font-size:13px;
+    color: #6E7C93;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
-/* =========================================================
-HEADER HERO
-========================================================= */
-
+/* HEADER HERO */
 .hero-container {
     background: linear-gradient(135deg,#111827,#0B1220);
-    border:1px solid #1B263B;
-    padding:28px;
-    border-radius:18px;
-    margin-bottom:25px;
+    border: 1px solid #1B263B;
+    padding: 24px;
+    border-radius: 12px;
+    margin-bottom: 25px;
 }
 
 .hero-title {
-    color:white;
-    font-size:38px;
-    font-weight:700;
-    margin-bottom:8px;
+    color: white;
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 6px;
 }
 
 .hero-subtitle {
-    color:#8CA0B8;
-    font-size:15px;
+    color: #8CA0B8;
+    font-size: 14px;
 }
 
 .hero-status {
-    background:#0F1728;
-    border:1px solid #1E2B45;
-    padding:12px 18px;
-    border-radius:12px;
-    display:inline-block;
-    margin-top:18px;
-    color:#DCE6F2;
+    background: #0F1728;
+    border: 1px solid #1E2B45;
+    padding: 8px 14px;
+    border-radius: 9999px;
+    display: inline-block;
+    margin-top: 14px;
+    color: #10B981;
+    font-size: 12px;
+    font-weight: 600;
 }
 
-/* =========================================================
-KPI CARDS
-========================================================= */
-
+/* KPI CARDS */
 .kpi-card {
     background: linear-gradient(180deg,#121A2B,#0D1422);
-    border:1px solid #1E2B45;
-    border-radius:18px;
-    padding:24px;
-    transition:0.3s;
-    height:145px;
+    border: 1px solid #1E2B45;
+    border-radius: 12px;
+    padding: 20px;
+    transition: 0.3s;
+    height: 130px;
 }
 
 .kpi-card:hover {
-    transform:translateY(-4px);
-    border-color:#3B82F6;
+    transform: translateY(-2px);
+    border-color: #3B82F6;
 }
 
 .kpi-title {
-    color:#7F93AD;
-    font-size:13px;
-    font-weight:600;
-    letter-spacing:1px;
+    color: #7F93AD;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
 }
 
 .kpi-value {
-    color:white;
-    font-size:42px;
-    font-weight:700;
-    margin-top:18px;
+    color: white;
+    font-size: 36px;
+    font-weight: 700;
+    margin-top: 12px;
+    line-height: 1;
 }
 
-.kpi-blue {
-    border-left:5px solid #3B82F6;
-}
+.kpi-blue { border-left: 4px solid #3B82F6; }
+.kpi-green { border-left: 4px solid #10B981; }
+.kpi-red { border-left: 4px solid #EF4444; }
+.kpi-yellow { border-left: 4px solid #F59E0B; }
 
-.kpi-green {
-    border-left:5px solid #10B981;
-}
-
-.kpi-red {
-    border-left:5px solid #EF4444;
-}
-
-.kpi-yellow {
-    border-left:5px solid #F59E0B;
-}
-
-/* =========================================================
-PANELS
-========================================================= */
-
+/* PANELS */
 .panel {
-    background:#0E1625;
-    border:1px solid #1D2940;
-    border-radius:18px;
-    padding:20px;
-    margin-top:15px;
+    background: #0E1625;
+    border: 1px solid #1D2940;
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 15px;
 }
 
 .panel-title {
-    color:white;
-    font-size:18px;
-    font-weight:600;
-    margin-bottom:15px;
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 15px;
 }
 
-/* =========================================================
-BUTTONS
-========================================================= */
-
+/* BUTTONS & INPUTS */
 .stButton > button {
-    width:100%;
-    border-radius:12px !important;
-    border:none !important;
-    background:#2563EB !important;
-    color:white !important;
-    font-weight:600 !important;
-    padding:12px !important;
+    width: 100%;
+    border-radius: 8px !important;
+    border: none !important;
+    background: #2563EB !important;
+    color: white !important;
+    font-weight: 600 !important;
+    padding: 10px !important;
 }
 
-.stButton > button:hover {
-    background:#1D4ED8 !important;
+.stButton > button:hover { background: #1D4ED8 !important; }
+
+.stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] {
+    background: #111827 !important;
+    border: 1px solid #1E293B !important;
+    color: white !important;
+    border-radius: 8px !important;
 }
 
-/* =========================================================
-INPUTS
-========================================================= */
-
-.stTextInput input,
-.stNumberInput input,
-.stSelectbox div[data-baseweb="select"] {
-    background:#111827 !important;
-    border:1px solid #1E293B !important;
-    color:white !important;
-    border-radius:10px !important;
-}
-
-/* =========================================================
-TEXT
-========================================================= */
-
-h1,h2,h3,h4,h5 {
-    color:white !important;
-}
-
-p,label {
-    color:#CBD5E1 !important;
-}
-
-/* =========================================================
-ALERT BOX
-========================================================= */
-
+/* ALERT BOX */
 .alert-box {
-    background:#101826;
-    border:1px solid #1F2A40;
-    border-radius:14px;
-    padding:18px;
-    margin-bottom:12px;
+    background: #101826;
+    border: 1px solid #1F2A40;
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 10px;
 }
 
-.alert-title {
-    color:white;
-    font-weight:600;
-}
+.alert-title { color: white; font-weight: 600; font-size: 13px; }
+.alert-sub { color: #8CA0B8; font-size: 12px; margin-top: 2px; }
 
-.alert-sub {
-    color:#8CA0B8;
-    font-size:13px;
-    margin-top:4px;
-}
-
+/* TABLE STYLE */
+.custom-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+.custom-table th { padding: 12px; color: #7F93AD; text-transform: uppercase; font-size: 11px; border-bottom: 1px solid #1D2940; }
+.custom-table td { padding: 12px; border-bottom: 1px solid rgba(29, 41, 64, 0.5); color: #F1F5F9; }
 </style>
 """, unsafe_allow_html=True)
 
 # =========================================================
-# FIREBASE
+# CONEXÃO FIREBASE
 # =========================================================
 @st.cache_resource
 def init_firebase():
@@ -259,7 +209,7 @@ def init_firebase():
 db = init_firebase()
 
 # =========================================================
-# DATABASE FUNCTIONS
+# FUNÇÕES DE BANCO DE DADOS
 # =========================================================
 def buscar_cilindros():
     docs = db.collection('cilindros_ativos').stream()
@@ -277,257 +227,234 @@ def atualizar_status_cilindro(id_documento, campos):
     db.collection('cilindros_ativos').document(id_documento).update(campos)
 
 # =========================================================
-# COMPONENTS
+# PIPELINE DE CONSOLIDACAO DE TELEMETRIA EM MEMORIA (PANDAS)
+# =========================================================
+def obter_ativos_consolidados():
+    ativos = buscar_cilindros()
+    if not ativos:
+        return []
+    
+    # Busca chunks de telemetria crua evitando queries indexadas complexas
+    clp_stream = db.collection('telemetria_clp').stream()
+    clp_docs = [d.to_dict() for d in clp_stream]
+    df_clp = pd.DataFrame(clp_docs) if clp_docs else pd.DataFrame()
+    
+    vib_stream = db.collection('telemetria_vib').stream()
+    vib_docs = [d.to_dict() for d in vib_stream]
+    df_vib = pd.DataFrame(vib_docs) if vib_docs else pd.DataFrame()
+    
+    lista_consolidada = []
+    
+    for ativo in ativos:
+        tag = ativo['tag_clp_vinculada']
+        sensor = ativo['id_sensor_vinculado']
+        
+        # Fallbacks padrão de campo desenergizado
+        t_avanco = 0.0
+        t_retorno = 0.0
+        ciclos = 0
+        vibracao = 0.0
+        
+        if not df_clp.empty and 'tag_clp' in df_clp.columns:
+            sub_clp = df_clp[df_clp['tag_clp'] == tag]
+            if not sub_clp.empty:
+                if 'timestamp' in sub_clp.columns:
+                    sub_clp = sub_clp.sort_values(by='timestamp', ascending=False)
+                latest_clp = sub_clp.iloc[0]
+                t_avanco = latest_clp.get('tempo_avanco_ms', 0.0)
+                t_retorno = latest_clp.get('tempo_retorno_ms', 0.0)
+                ciclos = latest_clp.get('total_ciclos', 0)
+                
+        if not df_vib.empty and 'id_sensor' in df_vib.columns:
+            sub_vib = df_vib[df_vib['id_sensor'] == sensor]
+            if not sub_vib.empty:
+                if 'timestamp' in sub_vib.columns:
+                    sub_vib = sub_vib.sort_values(by='timestamp', ascending=False)
+                latest_vib = sub_vib.iloc[0]
+                vibracao = latest_vib.get('vibracao_rms', 0.0)
+                
+        # Algoritmo de Estabelecimento Automático de Baseline (100 Ciclos)
+        b_avanco = ativo.get('baseline_avanco_ms', 0.0)
+        b_retorno = ativo.get('baseline_retorno_ms', 0.0)
+        aprendizado_concluido = ativo.get('modo_aprendizado_concluido', False)
+        
+        if ciclos >= 100 and not aprendizado_concluido:
+            b_avanco = t_avanco
+            b_retorno = t_retorno
+            aprendizado_concluido = True
+            atualizar_status_cilindro(ativo['id_documento'], {
+                "baseline_avanco_ms": b_avanco,
+                "baseline_retorno_ms": b_retorno,
+                "modo_aprendizado_concluido": True
+            })
+            
+        # Cálculo de Degradação (Health Score) e Status Semântico
+        if ciclos < 100:
+            status = "APRENDIZADO"
+            health = 100
+            rul = 100
+        else:
+            desvio_ava = (t_avanco - b_avanco) / b_avanco if b_avanco > 0 else 0
+            desvio_ret = (t_retorno - b_retorno) / b_retorno if b_retorno > 0 else 0
+            pior_desvio = max(0, desvio_ava, desvio_ret)
+            
+            health = max(0, 100 - int(pior_desvio * 200))
+            rul = max(0, 100 - (ciclos // 500))  # Decaimento linear proporcional simulado
+            
+            if vibracao > 8.0 or health < 40 or ativo.get('falha_manual', False):
+                status = "FALHA IMINENTE"
+            elif vibracao > 4.0 or health < 75:
+                status = "ATENÇÃO"
+            else:
+                status = "NORMAL"
+                
+        lista_consolidada.append({
+            **ativo,
+            "tempo_avanco_ms": t_avanco,
+            "tempo_retorno_ms": t_retorno,
+            "ciclos_acumulados": ciclos,
+            "vibracao_rms": vibracao,
+            "baseline_avanco_ms": b_avanco,
+            "baseline_retorno_ms": b_retorno,
+            "status": status,
+            "health_score": health,
+            "rul_percentual": rul
+        })
+        
+    return lista_consolidada
+
+# =========================================================
+# LAYOUT COMPONENTS
 # =========================================================
 def hero_header():
     horario = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     st.markdown(f"""
     <div class="hero-container">
-        <div class="hero-title">
-            Kopempack Operations Center
-        </div>
-        <div class="hero-subtitle">
-            Monitoramento industrial • Telemetria • Manutenção preditiva • Supervisão operacional
-        </div>
-        <div class="hero-status">
-            🟢 Sistema Online • Última sincronização: {horario}
-        </div>
+        <div class="hero-title">Kopempack Operations Center</div>
+        <div class="hero-subtitle">Monitoramento Industrial • Telemetria Sensor-Sensor • Análise Preditiva Edge</div>
+        <div class="hero-status">🟢 REDE ONLINE • SYNC FIRESTORE: {horario}</div>
     </div>
     """, unsafe_allow_html=True)
 
-def kpi_card(titulo, valor, classe):
+def render_kpi(titulo, valor, classe):
     st.markdown(f"""
     <div class="kpi-card {classe}">
-        <div class="kpi-title">
-            {titulo}
-        </div>
-        <div class="kpi-value">
-            {valor}
-        </div>
+        <div class="kpi-title">{titulo}</div>
+        <div class="kpi-value">{valor}</div>
     </div>
     """, unsafe_allow_html=True)
 
 # =========================================================
-# DASHBOARD
+# TELA: DASHBOARD
 # =========================================================
 def tela_dashboard():
     hero_header()
-    cilindros = buscar_cilindros()
-
-    if not cilindros:
-        st.warning("Nenhum ativo cadastrado.")
+    dados = obter_ativos_consolidados()
+    
+    if not dados:
+        st.warning("Nenhum ativo comissionado na planta virtual.")
         return
-
-    df = pd.DataFrame(cilindros)
-
-    if 'status' not in df.columns:
-        df['status'] = 'NORMAL'
-
-    if 'rul_percentual' not in df.columns:
-        df['rul_percentual'] = 100
-
+        
+    df = pd.DataFrame(dados)
+    
     total = len(df)
     alertas = len(df[df['status'] == 'ATENÇÃO'])
     falhas = len(df[df['status'] == 'FALHA IMINENTE'])
-    media_rul = round(df['rul_percentual'].mean(), 1)
-
+    media_health = round(df['health_score'].mean(), 1)
+    
+    # Renderização de Bloco KPI
     c1, c2, c3, c4 = st.columns(4)
-
-    with c1:
-        kpi_card("ATIVOS ONLINE", total, "kpi-blue")
-    with c2:
-        kpi_card("ALERTAS", alertas, "kpi-yellow")
-    with c3:
-        kpi_card("FALHAS CRÍTICAS", falhas, "kpi-red")
-    with c4:
-        kpi_card("HEALTH MÉDIO", f"{media_rul}%", "kpi-green")
-
-    # =====================================================
-    # CHARTS
-    # =====================================================
-    g1, g2 = st.columns([1,1])
-
+    with c1: render_kpi("Ativos Monitorados", total, "kpi-blue")
+    with c2: render_kpi("Alertas de Sistema", alertas, "kpi-yellow")
+    with c3: render_kpi("Falhas Críticas", falhas, "kpi-red")
+    with c4: render_kpi("Health Score Médio", f"{media_health}%", "kpi-green")
+    
+    # Seção Gráfica
+    g1, g2 = st.columns(2)
+    
     with g1:
-        st.markdown("""
-        <div class="panel">
-        <div class="panel-title">
-        Status Operacional
-        </div>
-        """, unsafe_allow_html=True)
-
+        st.markdown('<div class="panel"><div class="panel-title">Status de Operação Global</div>', unsafe_allow_html=True)
         fig = px.pie(
-            df,
-            names='status',
-            hole=0.72,
-            color='status',
-            color_discrete_map={
-                'NORMAL':'#3B82F6',
-                'ATENÇÃO':'#F59E0B',
-                'FALHA IMINENTE':'#EF4444'
-            }
+            df, names='status', hole=0.70, color='status',
+            color_discrete_map={'NORMAL': '#10B981', 'ATENÇÃO': '#F59E0B', 'FALHA IMINENTE': '#EF4444', 'APRENDIZADO': '#3B82F6'}
         )
-
-        fig.update_layout(
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='white'),
-            height=420,
-            showlegend=True
-        )
+        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=320, showlegend=True)
         st.plotly_chart(fig, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
-
+        
     with g2:
-        st.markdown("""
-        <div class="panel">
-        <div class="panel-title">
-        Integridade dos Ativos
-        </div>
-        """, unsafe_allow_html=True)
-
-        df_sorted = df.sort_values(
-            by='rul_percentual',
-            ascending=True
-        )
-
+        st.markdown('<div class="panel"><div class="panel-title">Índice de Saúde por Ativo</div>', unsafe_allow_html=True)
+        df_sorted = df.sort_values(by='health_score', ascending=True)
         fig2 = px.bar(
-            df_sorted,
-            x='rul_percentual',
-            y='nome_identificacao',
-            orientation='h',
-            color='rul_percentual',
-            color_continuous_scale=[
-                '#EF4444',
-                '#F59E0B',
-                '#3B82F6'
-            ]
+            df_sorted, x='health_score', y='nome_identificacao', orientation='h', color='health_score',
+            color_continuous_scale=['#EF4444', '#F59E0B', '#10B981'], range_color=[0, 100]
         )
-
-        fig2.update_layout(
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='white'),
-            height=420,
-            xaxis_title="RUL %",
-            yaxis_title=""
-        )
+        fig2.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=320, xaxis_title="Health Score %", yaxis_title="", coloraxis_showscale=False)
         st.plotly_chart(fig2, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
-
-    # =====================================================
-    # TABLE + EVENTS
-    # =====================================================
-    t1, t2 = st.columns([2,1])
-
+        
+    # Tabela de Ativos e Log
+    t1, t2 = st.columns([7, 3])
+    
     with t1:
-        st.markdown("""
-        <div class="panel">
-        <div class="panel-title">
-        Ativos Monitorados
-        </div>
-        """, unsafe_allow_html=True)
-
-        exibir = df[[
-            'nome_identificacao',
-            'tag_clp_vinculada',
-            'estado_integridade',
-            'rul_percentual',
-            'status'
-        ]]
-
-        exibir.columns = [
-            'Ativo',
-            'Tag CLP',
-            'Integridade',
-            'RUL (%)',
-            'Status'
-        ]
-
-        gb = GridOptionsBuilder.from_dataframe(exibir)
-        gb.configure_default_column(
-            groupable=True,
-            value=True,
-            enableRowGroup=True,
-            editable=False
-        )
-        gridOptions = gb.build()
-
-        AgGrid(
-            exibir,
-            gridOptions=gridOptions,
-            height=420,
-            fit_columns_on_grid_load=True,
-            theme="streamlit"
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
-
+        st.markdown('<div class="panel"><div class="panel-title">Frota de Cilindros Ativos</div>', unsafe_allow_html=True)
+        
+        html_table = """<table class="custom-table"><thead><tr>
+            <th>Identificação</th><th>Tag CLP</th><th>ID Sensor</th><th>Avanço</th><th>Retorno</th><th>Vibração</th><th>Status</th>
+        </tr></thead><tbody>"""
+        
+        for _, r in df.iterrows():
+            badge_color = "#10B981" if r['status']=='NORMAL' else ("#F59E0B" if r['status']=='ATENÇÃO' else ("#EF4444" if r['status']=='FALHA IMINENTE' else "#3B82F6"))
+            html_table += f"""<tr>
+                <td><b>{r['nome_identificacao']}</b></td>
+                <td><span style="font-family:monospace; color:#8CA0B8;">{r['tag_clp_vinculada']}</span></td>
+                <td><span style="font-family:monospace; color:#8CA0B8;">{r['id_sensor_vinculado']}</span></td>
+                <td>{r['tempo_avanco_ms']} ms</td>
+                <td>{r['tempo_retorno_ms']} ms</td>
+                <td>{r['vibracao_rms']} mm/s</td>
+                <td><span style="color:{badge_color}; font-weight:600;">{r['status']}</span></td>
+            </tr>"""
+        html_table += "</tbody></table></div>"
+        st.markdown(html_table, unsafe_allow_html=True)
+        
     with t2:
-        st.markdown("""
-        <div class="panel">
-        <div class="panel-title">
-        Eventos Recentes
-        </div>
-        """, unsafe_allow_html=True)
-
-        eventos = [
-            ("🟢", "Sistema sincronizado", "Sem falhas detectadas"),
-            ("🟡", "Vibração elevada", "Linha pneumática 02"),
-            ("🔵", "Novo ativo registrado", "Comissionamento concluído"),
-            ("🔴", "Falha crítica", "Necessária intervenção")
-        ]
-
-        for icon, titulo, sub in eventos:
-            st.markdown(f"""
-            <div class="alert-box">
-                <div class="alert-title">
-                    {icon} {titulo}
-                </div>
-                <div class="alert-sub">
-                    {sub}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown('<div class="panel"><div class="panel-title">Eventos de Borda IIoT</div>', unsafe_allow_html=True)
+        for _, r in df.iterrows():
+            if r['status'] == "FALHA IMINENTE":
+                st.markdown(f'<div class="alert-box"><div class="alert-title">🚨 Crítico: {r["nome_identificacao"]}</div><div class="alert-sub">Anomalia severa ou vibração > 8.0mm/s detectada.</div></div>', unsafe_allow_html=True)
+            elif r['status'] == "ATENÇÃO":
+                st.markdown(f'<div class="alert-box"><div class="alert-title">⚠️ Alerta: {r["nome_identificacao"]}</div><div class="alert-sub">Desvio de ciclo em relação à baseline.</div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="alert-box"><div class="alert-title">🟢 Gateway Sincronizado</div><div class="alert-sub">Transmissão estável via MQTT Bridge.</div></div>', unsafe_allow_html=True)
 
 # =========================================================
-# COMISSIONAMENTO
+# TELA: COMISSIONAMENTO
 # =========================================================
 def tela_comissionamento():
     hero_header()
-    st.markdown("## Comissionamento Industrial")
-    st.markdown("""Registro e sincronização de novos dispositivos industriais.""")
-
+    st.markdown("### Módulo de Comissionamento Industrial")
+    st.markdown("Vínculo lógico entre variáveis de hardware geradas no campo e ativos físicos.")
+    
     col1, col2 = st.columns(2)
-
-    tags_clp = [
-        "SIM_CLP_01", "SIM_CLP_02", "SIM_CLP_03", "SIM_CLP_04"
-    ]
-
-    tags_vib = [
-        "SIM_VIB_01", "SIM_VIB_02", "SIM_VIB_03", "SIM_VIB_04"
-    ]
-
+    
+    tags_clp_disponiveis = ["SIM_CLP_01", "SIM_CLP_02", "SIM_CLP_03", "SIM_CLP_04", "SIM_CLP_05"]
+    tags_vib_disponiveis = ["SIM_VIB_01", "SIM_VIB_02", "SIM_VIB_03", "SIM_VIB_04", "SIM_VIB_05"]
+    
     with col1:
-        st.markdown("### Vínculos Lógicos")
-        tag_clp = st.selectbox("Tag CLP", tags_clp)
-        tag_vib = st.selectbox("Sensor Vibração", tags_vib)
-
+        st.markdown("#### Endereçamento de Tags")
+        tag_clp = st.selectbox("Vincular Registrador CLP (Tempo)", tags_clp_disponiveis)
+        tag_vib = st.selectbox("Vincular Endereço Sensor (Vibração)", tags_vib_disponiveis)
+        
     with col2:
-        st.markdown("### Especificações")
-        nome = st.text_input("Nome do Ativo")
-        modelo = st.selectbox(
-            "Modelo",
-            ["ISO 15552 - 32mm", "ISO 15552 - 50mm", "Compacto ADN"]
-        )
-        carga = st.number_input("Carga Operacional (Kg)", min_value=0.0)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    if st.button("Registrar Novo Ativo"):
+        st.markdown("#### Propriedades do Ativo")
+        nome = st.text_input("Nomenclatura Funcional (Ex: Cilindro Prensa Estação 3)")
+        modelo = st.selectbox("Modelo Pneumático", ["ISO 15552 - 32mm", "ISO 15552 - 50mm", "Compacto ADN"])
+        carga = st.number_input("Carga Mecânica Aplicada (Kg)", min_value=0.0, step=0.5)
+        
+    if st.button("Gravar Vínculo no Sistema"):
         if not nome:
-            st.error("Informe o nome do ativo.")
+            st.error("Campo de nomenclatura funcional é obrigatório.")
             return
-
+            
         payload = {
             "nome_identificacao": nome,
             "modelo": modelo,
@@ -536,144 +463,116 @@ def tela_comissionamento():
             "id_sensor_vinculado": tag_vib,
             "estado_integridade": "ORIGINAL",
             "modo_aprendizado_concluido": False,
-            "ciclos_acumulados": 0,
-            "vida_util_nominal_ciclos": 10000000,
-            "status": "NORMAL",
-            "rul_percentual": 100,
-            "data_registro": datetime.now(timezone.utc).isoformat()
+            "baseline_avanco_ms": 0.0,
+            "baseline_retorno_ms": 0.0,
+            "falha_manual": False
         }
         registrar_cilindro(payload)
-        st.success("Ativo registrado com sucesso.")
+        st.success(f"Ativo '{nome}' comissionado com sucesso.")
 
 # =========================================================
-# DIAGNÓSTICO
+# TELA: DIAGNÓSTICO
 # =========================================================
 def tela_diagnostico():
     hero_header()
-    cilindros = buscar_cilindros()
-
-    if not cilindros:
-        st.warning("Nenhum ativo encontrado.")
+    dados = obter_ativos_consolidados()
+    
+    if not dados:
+        st.warning("Nenhum ativo localizado para inspeção técnica.")
         return
-
-    mapa = {c['nome_identificacao']: c for c in cilindros}
-    ativo_nome = st.selectbox("Selecionar Ativo", list(mapa.keys()))
-    ativo = mapa[ativo_nome]
+        
+    mapa = {c['nome_identificacao']: c for c in dados}
+    selecao = st.selectbox("Selecione o Ativo para Diagnóstico Avançado:", list(mapa.keys()))
+    ativo = mapa[selecao]
+    
     id_doc = ativo['id_documento']
-    rul = ativo.get('rul_percentual', 100)
-
-    col1, col2 = st.columns([1,2])
-
-    with col1:
+    health = ativo['health_score']
+    
+    col_g, col_m = st.columns([1, 2])
+    
+    with col_g:
         fig = go.Figure(go.Indicator(
-            mode="gauge+number",
-            value=rul,
-            number={'suffix':'%', 'font':{'size':42, 'color':'white'}},
+            mode="gauge+number", value=health,
+            number={'suffix': '%', 'font': {'size': 38, 'color': 'white'}},
             gauge={
-                'axis':{'range':[0,100]},
-                'bar':{'color':'#3B82F6'},
-                'bgcolor':'#0F172A',
-                'steps':[
-                    {'range':[0,20],'color':'#451A1A'},
-                    {'range':[20,50],'color':'#78350F'},
-                    {'range':[50,100],'color':'#0F172A'}
+                'axis': {'range': [0, 100], 'visible': False},
+                'bar': {'color': '#2563EB'},
+                'bgcolor': '#111827',
+                'steps': [
+                    {'range': [0, 40], 'color': 'rgba(239, 68, 68, 0.2)'},
+                    {'range': [40, 75], 'color': 'rgba(245, 158, 11, 0.2)'},
+                    {'range': [75, 100], 'color': 'rgba(16, 185, 129, 0.1)'}
                 ]
             }
         ))
-        fig.update_layout(
-            paper_bgcolor='rgba(0,0,0,0)',
-            height=400,
-            font=dict(color='white')
-        )
+        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', height=280, margin=dict(t=10, b=10, l=10, r=10))
         st.plotly_chart(fig, use_container_width=True)
-
-    with col2:
-        c1, c2 = st.columns(2)
-        c1.metric("Ciclos Acumulados", f"{ativo.get('ciclos_acumulados',0):,}".replace(",","."))
-        c2.metric("Status", ativo.get('status','NORMAL'))
-        c1.metric("Integridade", ativo.get('estado_integridade','ORIGINAL'))
-        c2.metric("Tag CLP", ativo.get('tag_clp_vinculada','-'))
-
-        st.markdown("### Intervenções")
-        a1, a2, a3 = st.columns(3)
-
-        with a1:
-            if st.button("Recalibrar Baseline"):
-                atualizar_status_cilindro(id_doc, {"modo_aprendizado_concluido": False})
-                st.success("Baseline reiniciada.")
-
-        with a2:
-            tipo = st.selectbox("Manutenção", ["Reparo", "Substituição"])
-            if st.button("Executar Manutenção"):
-                if tipo == "Substituição":
-                    atualizar_status_cilindro(
-                        id_doc,
-                        {
-                            "estado_integridade":"ORIGINAL",
-                            "ciclos_acumulados":0,
-                            "rul_percentual":100,
-                            "modo_aprendizado_concluido":False
-                        }
-                    )
-                    st.success("Substituição concluída.")
-                else:
-                    atualizar_status_cilindro(id_doc, {"estado_integridade":"REPARADO"})
-                    st.warning("Ativo marcado como reparado.")
-
-        with a3:
-            if st.button("Sinalizar Falha"):
-                atualizar_status_cilindro(id_doc, {"status":"FALHA IMINENTE"})
-                st.error("Falha crítica registrada.")
+        
+    with col_m:
+        st.markdown("<br>", unsafe_allow_html=True)
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Tempo Avanço (Último)", f"{ativo['tempo_avanco_ms']} ms", f"Base: {ativo['baseline_avanco_ms']} ms", delta_color="inverse")
+        c2.metric("Tempo Retorno (Último)", f"{ativo['tempo_retorno_ms']} ms", f"Base: {ativo['baseline_retorno_ms']} ms", delta_color="inverse")
+        c3.metric("Vibração de Campo", f"{ativo['vibracao_rms']} mm/s")
+        
+        c1.metric("Ciclos Totais (CLP)", f"{ativo['ciclos_acumulados']:,}".replace(",", "."))
+        c2.metric("RUL Estimado", f"{ativo['rul_percentual']}%")
+        c3.metric("Condição Logística", ativo['estado_integridade'])
+        
+    st.markdown("### Painel de Intervenção e Comandos Remotos")
+    a1, a2, a3 = st.columns(3)
+    
+    with a1:
+        st.markdown('<div class="panel"><div class="panel-title">Recalibração Temporal</div>', unsafe_allow_html=True)
+        if st.button("Forçar Nova Baseline"):
+            atualizar_status_cilindro(id_doc, {"modo_aprendizado_concluido": False, "baseline_avanco_ms": 0.0, "baseline_retorno_ms": 0.0})
+            st.success("Comando enviado. Iniciando novo ciclo de aprendizado de 100 loops.")
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+    with a2:
+        st.markdown('<div class="panel"><div class="panel-title">Ordem de Manutenção Remota</div>', unsafe_allow_html=True)
+        op = st.selectbox("Tipo de Intervenção", ["Ajuste/Reparo de Vedação", "Substituição Integral do Componente"])
+        if st.button("Registrar Intervenção Executada"):
+            if "Substituição" in op:
+                atualizar_status_cilindro(id_doc, {"estado_integridade": "ORIGINAL", "modo_aprendizado_concluido": False, "baseline_avanco_ms": 0.0, "baseline_retorno_ms": 0.0, "falha_manual": False})
+                st.success("Componente resetado de fábrica no log logístico.")
+            else:
+                atualizar_status_cilindro(id_doc, {"estado_integridade": "REPARADO"})
+                st.warning("Status modificado para REPARADO.")
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+    with a3:
+        st.markdown('<div class="panel"><div class="panel-title">Comando de Emergência</div>', unsafe_allow_html=True)
+        if st.button("Forçar Sinalização de Quebra Crítica"):
+            atualizar_status_cilindro(id_doc, {"falha_manual": True})
+            st.error("Alerta de quebra propagado para o Dashboard.")
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # =========================================================
-# SIDEBAR
+# MENUS & NAVEGAÇÃO (BARRA LATERAL)
 # =========================================================
 with st.sidebar:
     st.markdown("""
     <div class="sidebar-logo">
-        <div class="sidebar-title">
-            KOPEMPACK
-        </div>
-        <div class="sidebar-subtitle">
-            OPERATIONS CENTER
-        </div>
+        <div class="sidebar-title">KOPEMPACK</div>
+        <div class="sidebar-subtitle">Operations Center</div>
     </div>
     """, unsafe_allow_html=True)
-
+    
     menu = option_menu(
         menu_title=None,
         options=["Dashboard", "Comissionamento", "Diagnóstico"],
         icons=["speedometer2", "cpu", "activity"],
         default_index=0,
         styles={
-            "container":{
-                "background-color":"#0B111C",
-                "padding":"0!important"
-            },
-            "icon":{
-                "color":"#3B82F6",
-                "font-size":"18px"
-            },
-            "nav-link":{
-                "font-size":"15px",
-                "text-align":"left",
-                "margin":"6px",
-                "border-radius":"10px",
-                "--hover-color":"#111827",
-                "color":"white"
-            },
-            "nav-link-selected":{
-                "background-color":"#2563EB"
-            }
+            "container": {"background-color": "#0B111C", "padding": "0!important"},
+            "icon": {"color": "#3B82F6", "font-size": "18px"},
+            "nav-link": {"font-size": "14px", "text-align": "left", "margin": "6px", "border-radius": "8px", "--hover-color": "#111827", "color": "white"},
+            "nav-link-selected": {"background-color": "#2563EB"}
         }
     )
 
-# =========================================================
-# ROUTER
-# =========================================================
-if menu == "Dashboard":
-    tela_dashboard()
-elif menu == "Comissionamento":
-    tela_comissionamento()
-elif menu == "Diagnóstico":
-    tela_diagnostico()
+# Navegação de Telas
+if menu == "Dashboard": tela_dashboard()
+elif menu == "Comissionamento": tela_comissionamento()
+elif menu == "Diagnóstico": tela_diagnostico()
