@@ -37,12 +37,14 @@ def init_firebase():
 db = init_firebase()
 
 # =========================================================
-# INICIALIZAÇÃO DE ESTADO LOCAL
+# INICIALIZAÇÃO DE ESTADO LOCAL (5 CILINDROS)
 # =========================================================
 ESTACOES_HARDWARE = [
     {"clp": "SIM_CLP_01", "vib": "SIM_VIB_01"},
     {"clp": "SIM_CLP_02", "vib": "SIM_VIB_02"},
-    {"clp": "SIM_CLP_03", "vib": "SIM_VIB_03"}
+    {"clp": "SIM_CLP_03", "vib": "SIM_VIB_03"},
+    {"clp": "SIM_CLP_04", "vib": "SIM_VIB_04"},
+    {"clp": "SIM_CLP_05", "vib": "SIM_VIB_05"}
 ]
 
 if 'running' not in st.session_state:
