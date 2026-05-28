@@ -6,20 +6,24 @@ import time
 from datetime import datetime, timezone
 
 # =========================================================
-# CONFIGURAÇÃO
+# CONFIGURAÇÃO DA INTERFACE
 # =========================================================
-st.set_page_config(page_title="Simulador Industrial Kopempack", layout="wide")
+st.set_page_config(page_title="Kopempack - Injetor de Telemetria IIoT", layout="wide")
 
 st.markdown("""
 <style>
-    [data-testid="stAppViewContainer"] { background-color: #070B14; color: white; }
-    .stButton > button { background: #2563EB !important; color: white !important; border: none !important; }
-    .control-panel { background: #0B111C; padding: 20px; border-radius: 12px; border: 1px solid #182234; margin-bottom: 10px; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; background-color: #0B101B !important; color: #F1F5F9; }
+    [data-testid="stAppViewContainer"] { background-color: #0B101B; }
+    [data-testid="stHeader"] { background: transparent !important; }
+    .station-card { background-color: #151E2E; border: 1px solid #1E293B; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .station-header { font-size: 1rem; font-weight: 600; color: #3B82F6; margin-bottom: 1rem; border-bottom: 1px solid #1E293B; padding-bottom: 0.5rem; }
+    .stButton > button { width: 100%; font-weight: 600 !important; border-radius: 0.375rem !important; }
 </style>
 """, unsafe_allow_html=True)
 
 # =========================================================
-# FIREBASE
+# CONEXÃO FIREBASE
 # =========================================================
 @st.cache_resource
 def init_firebase():
@@ -33,71 +37,105 @@ def init_firebase():
 db = init_firebase()
 
 # =========================================================
-# FUNÇÕES DE INFRAESTRUTURA
+# INICIALIZAÇÃO DE ESTADO LOCAL
 # =========================================================
-def inicializar_planta():
-    ativos_padrao = [
-        {"nome": "Cilindro Linha A-01", "clp": "SIM_CLP_01", "vib": "SIM_VIB_01"},
-        {"nome": "Cilindro Selagem B-04", "clp": "SIM_CLP_02", "vib": "SIM_VIB_02"},
-        {"nome": "Cilindro Rotativo C-07", "clp": "SIM_CLP_03", "vib": "SIM_VIB_03"}
-    ]
-    for ativo in ativos_padrao:
-        db.collection('cilindros_ativos').add({
-            "nome_identificacao": ativo['nome'],
-            "tag_clp_vinculada": ativo['clp'],
-            "id_sensor_vinculado": ativo['vib'],
-            "estado_integridade": "ORIGINAL",
-            "ciclos_acumulados": 0,
-            "rul_percentual": 100,
-            "status": "NORMAL"
-        })
-    st.success("Planta virtual inicializada com 3 ativos padrão.")
-    st.rerun()
+ESTACOES_HARDWARE = [
+    {"clp": "SIM_CLP_01", "vib": "SIM_VIB_01"},
+    {"clp": "SIM_CLP_02", "vib": "SIM_VIB_02"},
+    {"clp": "SIM_CLP_03", "vib": "SIM_VIB_03"}
+]
+
+if 'running' not in st.session_state:
+    st.session_state.running = False
+
+# Garante contadores de ciclos persistentes na sessão do simulador
+for est in ESTACOES_HARDWARE:
+    if f"ciclos_{est['clp']}" not in st.session_state:
+        st.session_state[f"ciclos_{est['clp']}"] = 0
 
 # =========================================================
-# LÓGICA DE SIMULAÇÃO
+# INTERFACE DE CONTROLE
 # =========================================================
-st.title("⚙️ Simulador de Processos Industrial")
+st.title("⚙️ Injetor de Telemetria de Campo (Gateway IIoT)")
+st.markdown("Emulação física de sinais elétricos de sensores magnéticos (Sensor-Sensor) e analíticos de vibração.")
 
-ativos = list(db.collection('cilindros_ativos').stream())
-if not ativos:
-    st.warning("Nenhum ativo detectado na nuvem.")
-    if st.button("Inicializar Planta Virtual (Bootstrapping)"):
-        inicializar_planta()
-    st.stop()
-
-# Se houver ativos, segue o fluxo normal
-ativos_data = [{'id_documento': a.id, **a.to_dict()} for a in ativos]
-
-if 'running' not in st.session_state: st.session_state.running = False
-
-c_btn1, c_btn2 = st.columns([1, 10])
-if c_btn1.button("▶️ RUN"): st.session_state.running = True
-if c_btn1.button("⏹️ STOP"): st.session_state.running = False
+# Painel de Comando Global
+c1, c2, c3 = st.columns([1, 1, 8])
+with c1:
+    if st.button("▶️ INICIAR REDE", type="primary", use_container_width=True):
+        st.session_state.running = True
+with c2:
+    if st.button("⏹️ PARAR REDE", use_container_width=True):
+        st.session_state.running = False
 
 st.markdown("---")
 
-for ativo in ativos_data:
-    with st.container():
-        st.markdown(f'<div class="control-panel">', unsafe_allow_html=True)
-        col1, col2, col3 = st.columns([2, 1, 1])
-        col1.subheader(f"Ativo: {ativo['nome_identificacao']}")
-        vib = col2.slider(f"Vibração (mm/s)", 1.0, 10.0, 2.0, key=f"vib_{ativo['id_documento']}")
-        atraso = col3.slider(f"Atraso Ciclo (ms)", 0, 500, 0, key=f"atraso_{ativo['id_documento']}")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-if st.session_state.running:
-    for ativo in ativos_data:
-        # Lógica de ciclo
-        atraso = st.session_state[f"atraso_{ativo['id_documento']}"]
-        ciclos_novos = ativo.get('ciclos_acumulados', 0) + 1
-        
-        # Atualização no Firebase
-        db.collection('cilindros_ativos').document(ativo['id_documento']).update({
-            "ciclos_acumulados": ciclos_novos,
-            "rul_percentual": max(0, 100 - (ciclos_novos // 50)),
-            "status": "ATENÇÃO" if atraso > 200 else "NORMAL"
-        })
+# Renderização dos Sliders de Ajuste por Estação de Hardware
+for est in ESTACOES_HARDWARE:
+    clp_id = est['clp']
+    vib_id = est['vib']
     
-    time.sleep(0.5)
+    st.markdown(f'<div class="station-card">', unsafe_allow_html=True)
+    st.markdown(f'<div class="station-header">Ponto de Medição: {clp_id} / {vib_id}</div>', unsafe_allow_html=True)
+    
+    col_info, col_sl1, col_sl2, col_sl3 = st.columns([2, 3, 3, 3])
+    
+    with col_info:
+        st.metric("Ciclos Processados no CLP", f"{st.session_state[f'ciclos_{clp_id}']:,}".replace(",", "."))
+        
+    with col_sl1:
+        st.slider("Tempo de Avanço (ms)", min_value=100.0, max_value=2000.0, value=400.0, step=10.0, key=f"val_avanco_{clp_id}")
+        
+    with col_sl2:
+        st.slider("Tempo de Retorno (ms)", min_value=100.0, max_value=2000.0, value=380.0, step=10.0, key=f"val_retorno_{clp_id}")
+        
+    with col_sl3:
+        st.slider("Vibração RMS (mm/s)", min_value=0.5, max_value=12.0, value=1.8, step=0.1, key=f"val_vib_{vib_id}")
+        
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# =========================================================
+# LOOP DE EXECUÇÃO DA TRANSMISSÃO MQTT/FIRESTORE
+# =========================================================
+if st.session_state.running:
+    agora = datetime.now(timezone.utc).isoformat()
+    
+    for est in ESTACOES_HARDWARE:
+        clp_id = est['clp']
+        vib_id = est['vib']
+        
+        # Incrementa o contador do hardware
+        st.session_state[f"ciclos_{clp_id}"] += 1
+        
+        # Coleta os valores atuais dos controles com ruído estatístico industrial (+/- 2%)
+        ruido_avanco = random.uniform(-5.0, 5.0)
+        ruido_retorno = random.uniform(-5.0, 5.0)
+        ruido_vib = random.uniform(-0.1, 0.1)
+        
+        val_avanco = round(st.session_state[f"val_avanco_{clp_id}"] + ruido_avanco, 1)
+        val_retorno = round(st.session_state[f"val_retorno_{clp_id}"] + ruido_retorno, 1)
+        val_vib = round(st.session_state[f"val_vib_{vib_id}"] + ruido_vib, 2)
+        
+        # Envio do bloco de dados do CLP (Tempo Sensor-Sensor e Contador)
+        payload_clp = {
+            "tag_clp": clp_id,
+            "tempo_avanco_ms": val_avanco,
+            "tempo_retorno_ms": val_retorno,
+            "total_ciclos": st.session_state[f"ciclos_{clp_id}"],
+            "timestamp": agora
+        }
+        
+        # Envio do bloco de dados do sensor de vibração
+        payload_vib = {
+            "id_sensor": vib_id,
+            "vibracao_rms": val_vib,
+            "timestamp": agora
+        }
+        
+        # Escrita direta nas coleções de telemetria bruta
+        db.collection('telemetria_clp').add(payload_clp)
+        db.collection('telemetria_vib').add(payload_vib)
+        
+    # Intervalo de varredura (1 segundo) antes de forçar a atualização do loop
+    time.sleep(1.0)
     st.rerun()
