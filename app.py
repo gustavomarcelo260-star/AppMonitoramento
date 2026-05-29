@@ -19,172 +19,43 @@ st.set_page_config(
 )
 
 # =========================================================
-# CSS GLOBAL - TESLA & LOVABLE DARK OPS STYLE
+# CSS GLOBAL
 # =========================================================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-html, body, [class*="css"] {
-    font-family: 'Inter', sans-serif;
-    background-color: #070B14 !important;
-    color: #F1F5F9;
-}
+html, body, [class*="css"] { font-family: 'Inter', sans-serif; background-color: #070B14 !important; color: #F1F5F9; }
+[data-testid="stAppViewContainer"] { background: #070B14; }
+[data-testid="stHeader"] { background: rgba(0,0,0,0); }
+#MainMenu, footer { visibility: hidden; }
 
-[data-testid="stAppViewContainer"] {
-    background: #070B14;
-}
+[data-testid="stSidebar"] { background: #0B111C; border-right: 1px solid #182234; }
+.sidebar-logo { text-align: center; padding-top: 10px; padding-bottom: 20px; border-bottom: 1px solid #182234; margin-bottom: 20px; }
+.sidebar-title { color: white; font-size: 22px; font-weight: 700; margin-top: 15px; letter-spacing: 0.15em; }
+.sidebar-subtitle { color: #6E7C93; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
 
-[data-testid="stHeader"] {
-    background: rgba(0,0,0,0);
-}
+.hero-container { background: linear-gradient(135deg,#111827,#0B1220); border: 1px solid #1B263B; padding: 24px; border-radius: 12px; margin-bottom: 25px; }
+.hero-title { color: white; font-size: 32px; font-weight: 700; margin-bottom: 6px; }
+.hero-subtitle { color: #8CA0B8; font-size: 14px; }
+.hero-status { background: #0F1728; border: 1px solid #1E2B45; padding: 8px 14px; border-radius: 9999px; display: inline-block; margin-top: 14px; color: #10B981; font-size: 12px; font-weight: 600; }
 
-#MainMenu, footer {
-    visibility: hidden;
-}
-
-/* SIDEBAR */
-[data-testid="stSidebar"] {
-    background: #0B111C;
-    border-right: 1px solid #182234;
-}
-
-.sidebar-logo {
-    text-align: center;
-    padding-top: 10px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid #182234;
-    margin-bottom: 20px;
-}
-
-.sidebar-title {
-    color: white;
-    font-size: 22px;
-    font-weight: 700;
-    margin-top: 15px;
-    letter-spacing: 0.15em;
-}
-
-.sidebar-subtitle {
-    color: #6E7C93;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-/* HEADER HERO */
-.hero-container {
-    background: linear-gradient(135deg,#111827,#0B1220);
-    border: 1px solid #1B263B;
-    padding: 24px;
-    border-radius: 12px;
-    margin-bottom: 25px;
-}
-
-.hero-title {
-    color: white;
-    font-size: 32px;
-    font-weight: 700;
-    margin-bottom: 6px;
-}
-
-.hero-subtitle {
-    color: #8CA0B8;
-    font-size: 14px;
-}
-
-.hero-status {
-    background: #0F1728;
-    border: 1px solid #1E2B45;
-    padding: 8px 14px;
-    border-radius: 9999px;
-    display: inline-block;
-    margin-top: 14px;
-    color: #10B981;
-    font-size: 12px;
-    font-weight: 600;
-}
-
-/* KPI CARDS */
-.kpi-card {
-    background: linear-gradient(180deg,#121A2B,#0D1422);
-    border: 1px solid #1E2B45;
-    border-radius: 12px;
-    padding: 20px;
-    transition: 0.3s;
-    height: 130px;
-}
-
-.kpi-card:hover {
-    transform: translateY(-2px);
-    border-color: #3B82F6;
-}
-
-.kpi-title {
-    color: #7F93AD;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-}
-
-.kpi-value {
-    color: white;
-    font-size: 36px;
-    font-weight: 700;
-    margin-top: 12px;
-    line-height: 1;
-}
-
+.kpi-card { background: linear-gradient(180deg,#121A2B,#0D1422); border: 1px solid #1E2B45; border-radius: 12px; padding: 20px; height: 130px; }
+.kpi-title { color: #7F93AD; font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+.kpi-value { color: white; font-size: 36px; font-weight: 700; margin-top: 12px; line-height: 1; }
 .kpi-blue { border-left: 4px solid #3B82F6; }
 .kpi-green { border-left: 4px solid #10B981; }
 .kpi-red { border-left: 4px solid #EF4444; }
 .kpi-yellow { border-left: 4px solid #F59E0B; }
 
-/* PANELS */
-.panel {
-    background: #0E1625;
-    border: 1px solid #1D2940;
-    border-radius: 12px;
-    padding: 20px;
-    margin-top: 15px;
-}
+.panel { background: #0E1625; border: 1px solid #1D2940; border-radius: 12px; padding: 20px; margin-top: 15px; }
+.panel-title { color: white; font-size: 16px; font-weight: 600; margin-bottom: 15px; }
 
-.panel-title {
-    color: white;
-    font-size: 16px;
-    font-weight: 600;
-    margin-bottom: 15px;
-}
-
-/* INPUTS E BOTÕES */
-.stButton > button {
-    width: 100%;
-    border-radius: 8px !important;
-    border: none !important;
-    background: #2563EB !important;
-    color: white !important;
-    font-weight: 600 !important;
-    padding: 10px !important;
-}
-
+.stButton > button { width: 100%; border-radius: 8px !important; border: none !important; background: #2563EB !important; color: white !important; font-weight: 600 !important; padding: 10px !important; }
 .stButton > button:hover { background: #1D4ED8 !important; }
+.stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] { background: #111827 !important; border: 1px solid #1E293B !important; color: white !important; border-radius: 8px !important; }
 
-.stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] {
-    background: #111827 !important;
-    border: 1px solid #1E293B !important;
-    color: white !important;
-    border-radius: 8px !important;
-}
-
-.alert-box {
-    background: #101826;
-    border: 1px solid #1F2A40;
-    border-radius: 8px;
-    padding: 14px;
-    margin-bottom: 10px;
-}
-
+.alert-box { background: #101826; border: 1px solid #1F2A40; border-radius: 8px; padding: 14px; margin-bottom: 10px; }
 .alert-title { color: white; font-weight: 600; font-size: 13px; }
 .alert-sub { color: #8CA0B8; font-size: 12px; margin-top: 2px; }
 
@@ -231,11 +102,11 @@ def obter_ativos_consolidados():
     if not ativos:
         return []
     
-    clp_stream = db.collection('telemetria_clp').stream()
+    clp_stream = db.collection('estado_atual_clp').stream()
     clp_docs = [d.to_dict() for d in clp_stream]
     df_clp = pd.DataFrame(clp_docs) if clp_docs else pd.DataFrame()
     
-    vib_stream = db.collection('telemetria_vib').stream()
+    vib_stream = db.collection('estado_atual_vib').stream()
     vib_docs = [d.to_dict() for d in vib_stream]
     df_vib = pd.DataFrame(vib_docs) if vib_docs else pd.DataFrame()
     
@@ -253,18 +124,14 @@ def obter_ativos_consolidados():
         if not df_clp.empty and 'tag_clp' in df_clp.columns:
             sub_clp = df_clp[df_clp['tag_clp'] == tag]
             if not sub_clp.empty:
-                if 'timestamp' in sub_clp.columns:
-                    sub_clp = sub_clp.sort_values(by='timestamp', ascending=False)
                 latest_clp = sub_clp.iloc[0]
                 t_avanco = latest_clp.get('tempo_avanco_ms', 0.0)
                 t_retorno = latest_clp.get('tempo_retorno_ms', 0.0)
-                ciclos = latest_clp.get('total_ciclos', 0)
+                ciclos = latest_clp.get('total_cycles', 0)
                 
         if not df_vib.empty and 'id_sensor' in df_vib.columns:
             sub_vib = df_vib[df_vib['id_sensor'] == sensor]
             if not sub_vib.empty:
-                if 'timestamp' in sub_vib.columns:
-                    sub_vib = sub_vib.sort_values(by='timestamp', ascending=False)
                 latest_vib = sub_vib.iloc[0]
                 vibracao = latest_vib.get('vibracao_rms', 0.0)
                 
@@ -272,9 +139,22 @@ def obter_ativos_consolidados():
         b_retorno = ativo.get('baseline_retorno_ms', 0.0)
         aprendizado_concluido = ativo.get('modo_aprendizado_concluido', False)
         
+        # Extração matemática da baseline com base nos 10 pontos do histórico comprimido
         if ciclos >= 100 and not aprendizado_concluido:
-            b_avanco = t_avanco
-            b_retorno = t_retorno
+            historico_baseline = db.collection('telemetria_clp')\
+                                   .where('tag_clp', '==', tag)\
+                                   .order_by('timestamp', direction=firestore.Query.DESCENDING)\
+                                   .limit(10)\
+                                   .stream()
+            pontos = [d.to_dict() for d in historico_baseline]
+            if pontos:
+                df_pontos = pd.DataFrame(pontos)
+                b_avanco = round(df_pontos['tempo_avanco_ms'].mean(), 1)
+                b_retorno = round(df_pontos['tempo_retorno_ms'].mean(), 1)
+            else:
+                b_avanco = t_avanco
+                b_retorno = t_retorno
+                
             aprendizado_concluido = True
             atualizar_status_cilindro(ativo['id_documento'], {
                 "baseline_avanco_ms": b_avanco,
@@ -446,7 +326,7 @@ def tela_comissionamento():
         st.success(f"Ativo '{nome}' comissionado com sucesso.")
 
 # =========================================================
-# TELA: DIAGNÓSTICO (CICLO A CICLO HISTÓRICO INTEGRADO)
+# TELA: DIAGNÓSTICO
 # =========================================================
 def tela_diagnostico():
     hero_header()
@@ -488,75 +368,66 @@ def tela_diagnostico():
         c2.metric("Condição Logística", ativo['estado_integridade'])
         c3.metric("Status Operacional", ativo['status'])
 
-    # =========================================================
-    # GRÁFICO HISTÓRICO CICLO A CICLO (MULTINÍVEL)
-    # =========================================================
+    # Histórico Ciclo a Ciclo com limitação estrita de buffer (Evita ResourceExhausted)
     st.markdown('<div class="panel"><div class="panel-title">Histórico de Séries Temporais Ciclo a Ciclo</div>', unsafe_allow_html=True)
     
-    clp_stream = db.collection('telemetria_clp').where('tag_clp', '==', tag).stream()
+    clp_stream = db.collection('telemetria_clp').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(150).stream()
     df_clp_h = pd.DataFrame([d.to_dict() for d in clp_stream])
     
-    vib_stream = db.collection('telemetria_vib').where('id_sensor', '==', sensor).stream()
+    vib_stream = db.collection('telemetria_vib').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(150).stream()
     df_vib_h = pd.DataFrame([d.to_dict() for d in vib_stream])
     
-    if not df_clp_h.empty and not df_vib_h.empty and 'timestamp' in df_clp_h.columns and 'timestamp' in df_vib_h.columns:
-        df_clp_h = df_clp_h.sort_values(by='timestamp', ascending=False).head(30).reset_index(drop=True)
-        df_vib_h = df_vib_h.sort_values(by='timestamp', ascending=False).head(30).reset_index(drop=True)
+    if not df_clp_h.empty and 'tag_clp' in df_clp_h.columns:
+        df_clp_h = df_clp_h[df_clp_h['tag_clp'] == tag].head(30).reset_index(drop=True)
         
+    if not df_vib_h.empty and 'id_sensor' in df_vib_h.columns:
+        df_vib_h = df_vib_h[df_vib_h['id_sensor'] == sensor].head(30).reset_index(drop=True)
+        
+    if not df_clp_h.empty and not df_vib_h.empty and 'total_cycles' in df_clp_h.columns:
         min_len = min(len(df_clp_h), len(df_vib_h))
         df_hist = pd.concat([df_clp_h.iloc[:min_len], df_vib_h.get(['vibracao_rms']).iloc[:min_len]], axis=1)
-        df_hist = df_hist.iloc[::-1].reset_index(drop=True) # Ordem cronológica esquerda->direita
+        df_hist = df_hist.iloc[::-1].reset_index(drop=True)
         
         fig_line = make_subplots(secondary_y=True)
-        
-        # Sinais de tempo (Eixo Y Principal)
         fig_line.add_trace(go.Scatter(x=df_hist['total_cycles'], y=df_hist['tempo_avanco_ms'], name="Tempo Avanço (ms)", line=dict(color='#3B82F6', width=2)), secondary_y=False)
         fig_line.add_trace(go.Scatter(x=df_hist['total_cycles'], y=df_hist['tempo_retorno_ms'], name="Tempo Retorno (ms)", line=dict(color='#F59E0B', width=2)), secondary_y=False)
+        fig_line.add_trace(go.Scatter(x=df_hist['total_cycles'], y=df_hist['vibracao_rms'], name="Vibração (mm/s)", line=dict(color='#10B981', width=1.5, dash='dot')), secondary_y=True)
         
-        # Sinal de vibração (Eixo Y Secundário)
-        fig_line.add_trace(go.Scatter(x=df_hist['total_cycles'], y=df_hist['vibracao_rms'], name="Vibração RMS (mm/s)", line=dict(color='#10B981', width=1.5, dash='dot')), secondary_y=True)
-        
-        # Injeção de Limiares Tolerantes Estáticos se a Baseline estiver pronta
         b_av = ativo['baseline_avanco_ms']
         b_ret = ativo['baseline_retorno_ms']
         if b_av > 0:
-            fig_line.add_hline(y=b_av, line_dash="dash", line_color="rgba(59, 130, 246, 0.4)", annotation_text="Base Avanço")
-            fig_line.add_hline(y=b_av * 1.30, line_dash="solid", line_color="rgba(239, 68, 68, 0.4)", annotation_text="+30% Limiar")
-            fig_line.add_hline(y=b_av * 0.80, line_dash="solid", line_color="rgba(239, 68, 68, 0.4)", annotation_text="-20% Limiar")
+            fig_line.add_hline(y=b_av, line_dash="dash", line_color="rgba(59, 130, 246, 0.4)", annotation_text="Base Av.")
+            fig_line.add_hline(y=b_av * 1.30, line_dash="solid", line_color="rgba(239, 68, 68, 0.4)", annotation_text="+30%")
+            fig_line.add_hline(y=b_av * 0.80, line_dash="solid", line_color="rgba(239, 68, 68, 0.4)", annotation_text="-20%")
         if b_ret > 0:
-            fig_line.add_hline(y=b_ret, line_dash="dash", line_color="rgba(245, 158, 11, 0.4)", annotation_text="Base Retorno")
+            fig_line.add_hline(y=b_ret, line_dash="dash", line_color="rgba(245, 158, 11, 0.4)", annotation_text="Base Ret.")
 
         fig_line.update_layout(
-            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='white'), height=350,
-            xaxis_title="Sequência de Ciclos (Contador CLP)",
-            yaxis_title="Escala de Tempo (ms)",
-            yaxis2_title="Escala de Vibração (mm/s)",
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=350,
+            xaxis_title="Sequência de Ciclos (Contador CLP)", yaxis_title="Tempo (ms)", yaxis2_title="Vibração (mm/s)",
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
-        fig_line.update_xaxes(showgrid=False)
-        fig_line.update_yaxes(showgrid=False)
         st.plotly_chart(fig_line, use_container_width=True)
     else:
-        st.info("Aguardando buffers de telemetria para plotagem do gráfico ciclo a ciclo.")
+        st.info("Aguardando sincronização de buffers de histórico...")
     st.markdown("</div>", unsafe_allow_html=True)
         
     st.markdown("### Painel de Intervenção e Comandos Remotos")
     
-    # ESTRUTURAÇÃO NATIVA: Separação limpa dos elementos interativos em colunas Streamlit
+    # Estruturação nativa dos comandos de manutenção
     with st.container():
         a1, a2, a3 = st.columns(3)
         
         with a1:
             st.markdown("#### Recalibração Temporal")
-            st.caption("Invalida o aprendizado anterior e força a captura de novas baselines industriais.")
+            st.caption("Invalida o aprendizado anterior e força a captura de novas baselines.")
             if st.button("Forçar Nova Baseline"):
                 atualizar_status_cilindro(id_doc, {"modo_aprendizado_concluido": False, "baseline_avanco_ms": 0.0, "baseline_retorno_ms": 0.0})
                 st.success("Comando enviado. Iniciando ciclo de aprendizado.")
             
         with a2:
             st.markdown("#### Ordem de Manutenção")
-            st.caption("Atualiza as tags patrimoniais de histórico após intervenção técnica de campo.")
+            st.caption("Atualiza as tags patrimoniais após intervenção física de campo.")
             op = st.selectbox("Tipo de Intervenção", ["Ajuste/Reparo de Vedação", "Substituição Integral do Componente"])
             if st.button("Registrar Intervenção"):
                 if "Substituição" in op:
@@ -568,7 +439,7 @@ def tela_diagnostico():
             
         with a3:
             st.markdown("#### Comando de Emergência")
-            st.caption("Injeta uma flag de interrupção forçada para teste e validação de alarmes.")
+            st.caption("Injeta uma flag de interrupção forçada para validação de alarmes.")
             if st.button("Forçar Sinalização de Quebra"):
                 atualizar_status_cilindro(id_doc, {"falha_manual": True})
                 st.error("Alerta de quebra propagado para a planta.")
@@ -597,7 +468,6 @@ with st.sidebar:
         }
     )
 
-# Controle de rotas com loop de auto-refresh de 4 segundos nas telas de visualização
 if menu == "Dashboard":
     tela_dashboard()
     time.sleep(4.0)
