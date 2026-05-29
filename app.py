@@ -7,7 +7,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timezone
-import time
 
 # =========================================================
 # CONFIGURAÇÃO DA PÁGINA
@@ -78,7 +77,7 @@ html, body, [class*="css"] {
     border: 1px solid #1B263B;
     padding: 24px;
     border-radius: 12px;
-    margin-bottom: 25px;
+    margin-bottom: 15px;
 }
 
 .hero-title {
@@ -174,16 +173,37 @@ div[data-key="painel_historico"] {
     border-radius: 8px !important;
 }
 
-.alert-box {
-    background: #101826;
-    border: 1px solid #1F2A40;
-    border-radius: 8px;
+/* GERENCIADOR DE ALERTAS SUPERIOR */
+.alert-banner-critical {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid #EF4444;
+    border-left: 6px solid #EF4444;
     padding: 14px;
-    margin-bottom: 10px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    color: #F87171;
 }
 
-.alert-title { color: white; font-weight: 600; font-size: 13px; }
-.alert-sub { color: #8CA0B8; font-size: 12px; margin-top: 2px; }
+.alert-banner-warning {
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid #F59E0B;
+    border-left: 6px solid #F59E0B;
+    padding: 14px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    color: #FBBF24;
+}
+
+.alert-banner-title {
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 2px;
+}
+
+.alert-banner-desc {
+    font-size: 13px;
+    opacity: 0.9;
+}
 
 .custom-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
 .custom-table th { padding: 12px; color: #7F93AD; text-transform: uppercase; font-size: 11px; border-bottom: 1px solid #1D2940; }
@@ -306,7 +326,7 @@ def obter_ativos_consolidados():
             else:
                 health = max(0, 100 - int(pior_desvio_pos * 200))
             
-            if desvio_ava > 0.30 or desvio_ret > 0.30 or desvio_ava < -0.20 or desvio_ret < -0.20 or vibracao > 8.0 or ativo.get('falha_manual', False):
+            if desvio_ava > 0.30 or desvio_ret > 0.30 or desvio_ava < -0.20 or desvio_ret < -0.20 or vibracao > 8.0:
                 status = "FALHA IMINENTE"
             elif desvio_ava > 0.15 or desvio_ret > 0.15 or vibracao > 4.0:
                 status = "ATENÇÃO"
@@ -333,15 +353,15 @@ def hero_header():
     <div class="hero-container">
         <div class="hero-title">Kopempack Operations Center</div>
         <div class="hero-subtitle">Monitoramento Industrial • Telemetria Sensor-Sensor • Análise Preditiva Edge</div>
-        <div class="hero-status">🟢 REDE ONLINE • AUTO-REFRESH ATIVO: {horario}</div>
+        <div class="hero-status">🟢 AGENTE DE TELEMETRIA ATIVO • TIMESTAMP: {horario}</div>
     </div>
     """, unsafe_allow_html=True)
 
 # =========================================================
-# TELA: DASHBOARD
+# FRAGMENTOS DE ATUALIZAÇÃO REATIVA (AUTO-REFRESH SEM TRAVAMENTOS)
 # =========================================================
-def tela_dashboard():
-    hero_header()
+@st.fragment(run_every=4)
+def render_conteudo_dashboard():
     dados = obter_ativos_consolidados()
     
     if not dados:
@@ -354,12 +374,31 @@ def tela_dashboard():
     falhas = len(df[df['status'] == 'FALHA IMINENTE'])
     media_health = round(df['health_score'].mean(), 1)
     
+    # 1. SISTEMA OPERACIONAL DE ALERTAS GERENCIAIS (BANNERS DINÂMICOS CO TOPO)
+    for _, r in df.iterrows():
+        if r['status'] == "FALHA IMINENTE":
+            st.markdown(f"""
+            <div class="alert-banner-critical">
+                <div class="alert-banner-title">🚨 PARADA CRÍTICA EM POTENCIAL DETECTADA: {r['nome_identificacao']}</div>
+                <div class="alert-banner-desc">O componente operou fora dos limites de segurança tolerados (Desvio crítico de tempo cinemático ou Vibração RMS > 8.0 mm/s). Recomenda-se intervenção mecânica imediata.</div>
+            </div>
+            """, unsafe_allow_html=True)
+        elif r['status'] == "ATENÇÃO":
+            st.markdown(f"""
+            <div class="alert-banner-warning">
+                <div class="alert-banner-title">⚠️ DESVIO OPERACIONAL DETECTADO: {r['nome_identificacao']}</div>
+                <div class="alert-banner-desc">O atuador apresentou perda gradual de performance cinemática (Desvio > 15% em relação à baseline estável). Agendar inspeção técnica de vedação pneumática.</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # 2. SEÇÃO DE BLOCOS KPI
     c1, c2, c3, c4 = st.columns(4)
     with c1: render_kpi("Ativos Monitorados", total, "kpi-blue")
     with c2: render_kpi("Alertas de Sistema", alertas, "kpi-yellow")
     with c3: render_kpi("Falhas Críticas", falhas, "kpi-red")
     with c4: render_kpi("Health Score Médio", f"{media_health}%", "kpi-green")
     
+    # 3. PAINÉIS DE GRÁFICOS ANALÍTICOS
     g1, g2 = st.columns(2)
     with g1:
         with st.container(key="painel_status"):
@@ -382,82 +421,30 @@ def tela_dashboard():
             fig2.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=320, xaxis_title="Health Score %", yaxis_title="", coloraxis_showscale=False)
             st.plotly_chart(fig2, use_container_width=True)
         
-    t1, t2 = st.columns([7, 3])
-    with t1:
-        with st.container(key="painel_frota"):
-            st.markdown('<div class="panel-title">Frota de Cilindros Ativos</div>', unsafe_allow_html=True)
-            html_table = """<table class="custom-table"><thead><tr>
-                <th>Identificação</th><th>Tag CLP</th><th>ID Sensor</th><th>Avanço</th><th>Retorno</th><th>Vibração</th><th>Saúde</th><th>Status</th>
-            </tr></thead><tbody>"""
-            for _, r in df.iterrows():
-                badge_color = "#10B981" if r['status']=='NORMAL' else ("#F59E0B" if r['status']=='ATENÇÃO' else ("#EF4444" if r['status']=='FALHA IMINENTE' else "#3B82F6"))
-                html_table += f"""<tr>
-                    <td><b>{r['nome_identificacao']}</b></td>
-                    <td><span style="font-family:monospace; color:#8CA0B8;">{r['tag_clp_vinculada']}</span></td>
-                    <td><span style="font-family:monospace; color:#8CA0B8;">{r['id_sensor_vinculado']}</span></td>
-                    <td>{r['tempo_avanco_ms']} ms</td>
-                    <td>{r['tempo_retorno_ms']} ms</td>
-                    <td>{r['vibracao_rms']} mm/s</td>
-                    <td><b>{r['health_score']}%</b></td>
-                    <td><span style="color:{badge_color}; font-weight:600;">{r['status']}</span></td>
-                </tr>"""
-            html_table += "</tbody></table>"
-            st.markdown(html_table, unsafe_allow_html=True)
-        
-    with t2:
-        st.markdown('<div class="panel"><div class="panel-title">Eventos de Borda IIoT</div>', unsafe_allow_html=True)
+    # 4. TABELA DE MONITORAMENTO DA FROTA (LARGURA TOTAL)
+    with st.container(key="painel_frota"):
+        st.markdown('<div class="panel-title">Frota de Cilindros Ativos</div>', unsafe_allow_html=True)
+        html_table = """<table class="custom-table"><thead><tr>
+            <th>Identificação</th><th>Tag CLP</th><th>ID Sensor</th><th>Avanço</th><th>Retorno</th><th>Vibração</th><th>Saúde</th><th>Status</th>
+        </tr></thead><tbody>"""
         for _, r in df.iterrows():
-            if r['status'] == "FALHA IMINENTE":
-                st.markdown(f'<div class="alert-box"><div class="alert-title">🚨 Crítico: {r["nome_identificacao"]}</div><div class="alert-sub">Anomalia severa detetada fora das tolerâncias.</div></div>', unsafe_allow_html=True)
-            elif r['status'] == "ATENÇÃO":
-                st.markdown(f'<div class="alert-box"><div class="alert-title">⚠️ Alerta: {r["nome_identificacao"]}</div><div class="alert-sub">Desvio de ciclo em relação à baseline estável.</div></div>', unsafe_allow_html=True)
-        st.markdown('<div class="alert-box"><div class="alert-title">🟢 Gateway Sincronizado</div><div class="alert-sub">Transmissão ativa via MQTT.</div></div>', unsafe_allow_html=True)
+            badge_color = "#10B981" if r['status']=='NORMAL' else ("#F59E0B" if r['status']=='ATENÇÃO' else ("#EF4444" if r['status']=='FALHA IMINENTE' else "#3B82F6"))
+            html_table += f"""<tr>
+                <td><b>{r['nome_identificacao']}</b></td>
+                <td><span style="font-family:monospace; color:#8CA0B8;">{r['tag_clp_vinculada']}</span></td>
+                <td><span style="font-family:monospace; color:#8CA0B8;">{r['id_sensor_vinculado']}</span></td>
+                <td>{r['tempo_avanco_ms']} ms</td>
+                <td>{r['tempo_retorno_ms']} ms</td>
+                <td>{r['vibracao_rms']} mm/s</td>
+                <td><b>{r['health_score']}%</b></td>
+                <td><span style="color:{badge_color}; font-weight:600;">{r['status']}</span></td>
+            </tr>"""
+        html_table += "</tbody></table>"
+        st.markdown(html_table, unsafe_allow_html=True)
 
-# =========================================================
-# TELA: COMISSIONAMENTO
-# =========================================================
-def tela_comissionamento():
-    hero_header()
-    st.markdown("### Módulo de Comissionamento Industrial")
-    st.markdown("Vínculo lógico entre variáveis de hardware geradas no campo e ativos físicos.")
-    
-    col1, col2 = st.columns(2)
-    tags_clp_disponiveis = ["SIM_CLP_01", "SIM_CLP_02", "SIM_CLP_03", "SIM_CLP_04", "SIM_CLP_05"]
-    tags_vib_disponiveis = ["SIM_VIB_01", "SIM_VIB_02", "SIM_VIB_03", "SIM_VIB_04", "SIM_VIB_05"]
-    
-    with col1:
-        st.markdown("#### Endereçamento de Tags")
-        tag_clp = st.selectbox("Vincular Registrador CLP (Tempo)", tags_clp_disponiveis)
-        tag_vib = st.selectbox("Vincular Endereço Sensor (Vibração)", tags_vib_disponiveis)
-        
-    with col2:
-        st.markdown("#### Propriedades do Ativo")
-        nome = st.text_input("Nomenclatura Funcional (Ex: Cilindro Prensa Estação 3)")
-        modelo = st.selectbox("Modelo Pneumático", ["ISO 15552 - 32mm", "ISO 15552 - 50mm", "Compacto ADN"])
-        
-    if st.button("Gravar Vínculo no Sistema"):
-        if not nome:
-            st.error("Campo de nomenclatura funcional é obrigatório.")
-            return
-        payload = {
-            "nome_identificacao": nome, "modelo": modelo, "tag_clp_vinculada": tag_clp,
-            "id_sensor_vinculado": tag_vib, "estado_integridade": "ORIGINAL", "modo_aprendizado_concluido": False,
-            "baseline_avanco_ms": 0.0, "baseline_retorno_ms": 0.0, "falha_manual": False
-        }
-        registrar_cilindro(payload)
-        st.success(f"Ativo '{nome}' comissionado com sucesso.")
 
-# =========================================================
-# TELA: DIAGNÓSTICO
-# =========================================================
-def tela_diagnostico():
-    hero_header()
-    dados = obter_ativos_consolidados()
-    
-    if not dados:
-        st.warning("Nenhum ativo localizado para inspeção técnica.")
-        return
-        
+@st.fragment(run_every=4)
+def render_conteudo_diagnostico(dados):
     mapa = {c['nome_identificacao']: c for c in dados}
     selecao = st.selectbox("Selecione o Ativo para Diagnóstico Avançado:", list(mapa.keys()))
     ativo = mapa[selecao]
@@ -510,7 +497,6 @@ def tela_diagnostico():
             df_hist = pd.concat([df_clp_h.iloc[:min_len], df_vib_h.get(['vibracao_rms']).iloc[:min_len]], axis=1)
             df_hist = df_hist.iloc[::-1].reset_index(drop=True)
             
-            # Subplot configurado com matriz de especificações (specs) para aceitar secondary_y
             fig_line = make_subplots(rows=1, cols=1, specs=[[{"secondary_y": True}]])
             
             fig_line.add_trace(
@@ -547,7 +533,7 @@ def tela_diagnostico():
     st.markdown("### Painel de Intervenção e Comandos Remotos")
     
     with st.container():
-        a1, a2, a3 = st.columns(3)
+        a1, a2 = st.columns(2) # Reduzido para 2 colunas devido a remoção da Sinalização de Quebra
         
         with a1:
             st.markdown("#### Recalibração Temporal")
@@ -562,18 +548,11 @@ def tela_diagnostico():
             op = st.selectbox("Tipo de Intervenção", ["Ajuste/Reparo de Vedação", "Substituição Integral do Componente"])
             if st.button("Registrar Intervenção"):
                 if "Substituição" in op:
-                    atualizar_status_cilindro(id_doc, {"estado_integridade": "ORIGINAL", "modo_aprendizado_concluido": False, "baseline_avanco_ms": 0.0, "baseline_retorno_ms": 0.0, "falha_manual": False})
+                    atualizar_status_cilindro(id_doc, {"estado_integridade": "ORIGINAL", "modo_aprendizado_concluido": False, "baseline_avanco_ms": 0.0, "baseline_retorno_ms": 0.0})
                     st.success("Componente resetado no log logístico.")
                 else:
                     atualizar_status_cilindro(id_doc, {"estado_integridade": "REPARADO"})
                     st.warning("Status modificado para REPARADO.")
-            
-        with a3:
-            st.markdown("#### Comando de Emergência")
-            st.caption("Injeta uma flag de interrupção forçada para validação de alarmes.")
-            if st.button("Forçar Sinalização de Quebra"):
-                atualizar_status_cilindro(id_doc, {"falha_manual": True})
-                st.error("Alerta de quebra propagado para a planta.")
 
 # =========================================================
 # HELPER COMPONENTS
@@ -589,6 +568,18 @@ def render_kpi(titulo, valor, classe):
 # =========================================================
 # MENUS & NAVEGAÇÃO
 # =========================================================
+def tela_dashboard():
+    hero_header()
+    render_conteudo_dashboard()
+
+def tela_diagnostico():
+    hero_header()
+    dados = obter_ativos_consolidados()
+    if not dados:
+        st.warning("Nenhum ativo localizado para inspeção técnica.")
+        return
+    render_conteudo_diagnostico(dados)
+
 with st.sidebar:
     st.markdown("""
     <div class="sidebar-logo">
@@ -610,13 +601,10 @@ with st.sidebar:
         }
     )
 
+# Roteador direto e instantâneo
 if menu == "Dashboard":
     tela_dashboard()
-    time.sleep(4.0)
-    st.rerun()
 elif menu == "Comissionamento":
     tela_comissionamento()
 elif menu == "Diagnóstico":
     tela_diagnostico()
-    time.sleep(4.0)
-    st.rerun()
