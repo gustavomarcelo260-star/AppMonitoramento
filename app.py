@@ -503,7 +503,7 @@ def tela_diagnostico():
         if not df_clp_h.empty and 'tag_clp' in df_clp_h.columns:
             df_clp_h = df_clp_h[df_clp_h['tag_clp'] == tag].head(30).reset_index(drop=True)
             
-        if not df_vib_h.empty && 'id_sensor' in df_vib_h.columns:
+        if not df_vib_h.empty and 'id_sensor' in df_vib_h.columns:
             df_vib_h = df_vib_h[df_vib_h['id_sensor'] == sensor].head(30).reset_index(drop=True)
             
         if not df_clp_h.empty and not df_vib_h.empty and 'total_cycles' in df_clp_h.columns:
