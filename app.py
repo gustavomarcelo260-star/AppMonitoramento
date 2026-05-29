@@ -358,7 +358,7 @@ def hero_header():
     """, unsafe_allow_html=True)
 
 # =========================================================
-# FRAGMENTOS DE ATUALIZAÇÃO REATIVA (AUTO-REFRESH SEM TRAVAMENTOS)
+# FRAGMENTOS DE ATUALIZAÇÃO REATIVA
 # =========================================================
 @st.fragment(run_every=4)
 def render_conteudo_dashboard():
@@ -374,7 +374,7 @@ def render_conteudo_dashboard():
     falhas = len(df[df['status'] == 'FALHA IMINENTE'])
     media_health = round(df['health_score'].mean(), 1)
     
-    # 1. SISTEMA OPERACIONAL DE ALERTAS GERENCIAIS (BANNERS DINÂMICOS CO TOPO)
+    # Banners de Alertas Gerenciais
     for _, r in df.iterrows():
         if r['status'] == "FALHA IMINENTE":
             st.markdown(f"""
@@ -391,14 +391,14 @@ def render_conteudo_dashboard():
             </div>
             """, unsafe_allow_html=True)
 
-    # 2. SEÇÃO DE BLOCOS KPI
+    # KPIs
     c1, c2, c3, c4 = st.columns(4)
     with c1: render_kpi("Ativos Monitorados", total, "kpi-blue")
     with c2: render_kpi("Alertas de Sistema", alertas, "kpi-yellow")
     with c3: render_kpi("Falhas Críticas", falhas, "kpi-red")
     with c4: render_kpi("Health Score Médio", f"{media_health}%", "kpi-green")
     
-    # 3. PAINÉIS DE GRÁFICOS ANALÍTICOS
+    # Gráficos
     g1, g2 = st.columns(2)
     with g1:
         with st.container(key="painel_status"):
@@ -421,7 +421,7 @@ def render_conteudo_dashboard():
             fig2.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=320, xaxis_title="Health Score %", yaxis_title="", coloraxis_showscale=False)
             st.plotly_chart(fig2, use_container_width=True)
         
-    # 4. TABELA DE MONITORAMENTO DA FROTA (LARGURA TOTAL)
+    # Tabela Frota
     with st.container(key="painel_frota"):
         st.markdown('<div class="panel-title">Frota de Cilindros Ativos</div>', unsafe_allow_html=True)
         html_table = """<table class="custom-table"><thead><tr>
@@ -533,7 +533,7 @@ def render_conteudo_diagnostico(dados):
     st.markdown("### Painel de Intervenção e Comandos Remotos")
     
     with st.container():
-        a1, a2 = st.columns(2) # Reduzido para 2 colunas devido a remoção da Sinalização de Quebra
+        a1, a2 = st.columns(2)
         
         with a1:
             st.markdown("#### Recalibração Temporal")
@@ -566,11 +566,42 @@ def render_kpi(titulo, valor, classe):
     """, unsafe_allow_html=True)
 
 # =========================================================
-# MENUS & NAVEGAÇÃO
+# TELAS E DIRECIONAMENTO
 # =========================================================
 def tela_dashboard():
     hero_header()
     render_conteudo_dashboard()
+
+def tela_comissionamento():
+    hero_header()
+    st.markdown("### Módulo de Comissionamento Industrial")
+    st.markdown("Vínculo lógico entre variáveis de hardware geradas no campo e ativos físicos.")
+    
+    col1, col2 = st.columns(2)
+    tags_clp_disponiveis = ["SIM_CLP_01", "SIM_CLP_02", "SIM_CLP_03", "SIM_CLP_04", "SIM_CLP_05"]
+    tags_vib_disponiveis = ["SIM_VIB_01", "SIM_VIB_02", "SIM_VIB_03", "SIM_VIB_04", "SIM_VIB_05"]
+    
+    with col1:
+        st.markdown("#### Endereçamento de Tags")
+        tag_clp = st.selectbox("Vincular Registrador CLP (Tempo)", tags_clp_disponiveis)
+        tag_vib = st.selectbox("Vincular Endereço Sensor (Vibração)", tags_vib_disponiveis)
+        
+    with col2:
+        st.markdown("#### Propriedades do Ativo")
+        nome = st.text_input("Nomenclatura Funcional (Ex: Cilindro Prensa Estação 3)")
+        modelo = st.selectbox("Modelo Pneumático", ["ISO 15552 - 32mm", "ISO 15552 - 50mm", "Compacto ADN"])
+        
+    if st.button("Gravar Vínculo no Sistema"):
+        if not nome:
+            st.error("Campo de nomenclatura funcional é obrigatório.")
+            return
+        payload = {
+            "nome_identificacao": nome, "modelo": modelo, "tag_clp_vinculada": tag_clp,
+            "id_sensor_vinculado": tag_vib, "estado_integridade": "ORIGINAL", "modo_aprendizado_concluido": False,
+            "baseline_avanco_ms": 0.0, "baseline_retorno_ms": 0.0, "falha_manual": False
+        }
+        registrar_cilindro(payload)
+        st.success(f"Ativo '{nome}' comissionado com sucesso.")
 
 def tela_diagnostico():
     hero_header()
@@ -580,6 +611,9 @@ def tela_diagnostico():
         return
     render_conteudo_diagnostico(dados)
 
+# =========================================================
+# MENUS & NAVEGAÇÃO (BARRA LATERAL)
+# =========================================================
 with st.sidebar:
     st.markdown("""
     <div class="sidebar-logo">
@@ -601,7 +635,6 @@ with st.sidebar:
         }
     )
 
-# Roteador direto e instantâneo
 if menu == "Dashboard":
     tela_dashboard()
 elif menu == "Comissionamento":
