@@ -50,7 +50,6 @@ ESTACOES_HARDWARE = [
 if 'running' not in st.session_state:
     st.session_state.running = False
 
-# Garante contadores de ciclos persistentes na sessão do simulador
 for est in ESTACOES_HARDWARE:
     if f"ciclos_{est['clp']}" not in st.session_state:
         st.session_state[f"ciclos_{est['clp']}"] = 0
@@ -61,7 +60,6 @@ for est in ESTACOES_HARDWARE:
 st.title("⚙️ Injetor de Telemetria de Campo (Gateway IIoT)")
 st.markdown("Emulação física de sinais elétricos de sensores magnéticos (Sensor-Sensor) e analíticos de vibração.")
 
-# Painel de Comando Global
 c1, c2, c3 = st.columns([1, 1, 8])
 with c1:
     if st.button("▶️ INICIAR REDE", type="primary", use_container_width=True):
@@ -72,7 +70,6 @@ with c2:
 
 st.markdown("---")
 
-# Renderização dos Sliders de Ajuste por Estação de Hardware
 for est in ESTACOES_HARDWARE:
     clp_id = est['clp']
     vib_id = est['vib']
@@ -97,7 +94,7 @@ for est in ESTACOES_HARDWARE:
     st.markdown('</div>', unsafe_allow_html=True)
 
 # =========================================================
-# LOOP DE EXECUÇÃO DA TRANSMISSÃO MQTT/FIRESTORE
+# LOOP DE EXECUÇÃO DA TRANSMISSÃO (OTIMIZADO)
 # =========================================================
 if st.session_state.running:
     agora = datetime.now(timezone.utc).isoformat()
@@ -106,38 +103,34 @@ if st.session_state.running:
         clp_id = est['clp']
         vib_id = est['vib']
         
-        # Incrementa o contador do hardware
         st.session_state[f"ciclos_{clp_id}"] += 1
         
-        # Coleta os valores atuais dos controles com ruído estatístico industrial (+/- 2%)
-        ruido_avanco = random.uniform(-5.0, 5.0)
-        ruido_retorno = random.uniform(-5.0, 5.0)
-        ruido_vib = random.uniform(-0.1, 0.1)
+        val_avanco = round(st.session_state[f"val_avanco_{clp_id}"] + random.uniform(-5.0, 5.0), 1)
+        val_retorno = round(st.session_state[f"val_retorno_{clp_id}"] + random.uniform(-5.0, 5.0), 1)
+        val_vib = round(st.session_state[f"val_vib_{vib_id}"] + random.uniform(-0.1, 0.1), 2)
         
-        val_avanco = round(st.session_state[f"val_avanco_{clp_id}"] + ruido_avanco, 1)
-        val_retorno = round(st.session_state[f"val_retorno_{clp_id}"] + ruido_retorno, 1)
-        val_vib = round(st.session_state[f"val_vib_{vib_id}"] + ruido_vib, 2)
-        
-        # Envio do bloco de dados do CLP (Tempo Sensor-Sensor e Contador)
         payload_clp = {
             "tag_clp": clp_id,
             "tempo_avanco_ms": val_avanco,
             "tempo_retorno_ms": val_retorno,
-            "total_ciclos": st.session_state[f"ciclos_{clp_id}"],
+            "total_cycles": st.session_state[f"ciclos_{clp_id}"],
             "timestamp": agora
         }
         
-        # Envio do bloco de dados do sensor de vibração
         payload_vib = {
             "id_sensor": vib_id,
             "vibracao_rms": val_vib,
             "timestamp": agora
         }
         
-        # Escrita direta nas coleções de telemetria bruta
-        db.collection('telemetria_clp').add(payload_clp)
-        db.collection('telemetria_vib').add(payload_vib)
+        # Escrita em documentos fixos de estado atual (Sobreescreve para poupar cotas)
+        db.collection('estado_atual_clp').document(clp_id).set(payload_clp)
+        db.collection('estado_atual_vib').document(vib_id).set(payload_vib)
         
-    # Intervalo de varredura (1 segundo) antes de forçar a atualização do loop
+        # Gravação de histórico reduzida (Apenas 1 ponto a cada 10 ciclos)
+        if st.session_state[f"ciclos_{clp_id}"] % 10 == 0:
+            db.collection('telemetria_clp').add(payload_clp)
+            db.collection('telemetria_vib').add(payload_vib)
+        
     time.sleep(1.0)
     st.rerun()
