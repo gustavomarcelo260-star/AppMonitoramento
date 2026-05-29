@@ -135,7 +135,7 @@ html, body, [class*="css"] {
 .kpi-red { border-left: 4px solid #EF4444; }
 .kpi-yellow { border-left: 4px solid #F59E0B; }
 
-/* REQUISITOS DE CONTAINER SEM QUEBRA */
+/* REQUISITOS DE CONTAINER SEM QUEBRA VIA DATA-KEY */
 div[data-key="painel_status"], 
 div[data-key="painel_saude"], 
 div[data-key="painel_frota"], 
@@ -265,7 +265,7 @@ def obter_ativos_consolidados():
         b_retorno = ativo.get('baseline_retorno_ms', 0.0)
         aprendizado_concluido = ativo.get('modo_aprendizado_concluido', False)
         
-        # SOLUÇÃO BYPASS ÍNDICE COMPOSTO: Filtra na memória via Pandas
+        # SOLUÇÃO BYPASS ÍNDICE COMPOSTO: Filtra em memória via Pandas para evitar FailedPrecondition
         if ciclos >= 100 and not aprendizado_concluido:
             historico_stream = db.collection('telemetria_clp')\
                                  .order_by('timestamp', direction=firestore.Query.DESCENDING)\
@@ -511,10 +511,21 @@ def tela_diagnostico():
             df_hist = pd.concat([df_clp_h.iloc[:min_len], df_vib_h.get(['vibracao_rms']).iloc[:min_len]], axis=1)
             df_hist = df_hist.iloc[::-1].reset_index(drop=True)
             
-            fig_line = make_subplots(secondary_y=True)
-            fig_line.add_trace(go.Scatter(x=df_hist['total_cycles'], y=df_hist['tempo_avanco_ms'], name="Tempo Avanço (ms)", line=dict(color='#3B82F6', width=2)), secondary_y=False)
-            fig_line.add_trace(go.Scatter(x=df_hist['total_cycles'], y=df_hist['tempo_retorno_ms'], name="Tempo Retorno (ms)", line=dict(color='#F59E0B', width=2)), secondary_y=False)
-            fig_line.add_trace(go.Scatter(x=df_hist['total_cycles'], y=df_hist['vibracao_rms'], name="Vibração (mm/s)", line=dict(color='#10B981', width=1.5, dash='dot')), secondary_y=True)
+            # Subplot corrigido com definição de linha e coluna explícita
+            fig_line = make_subplots(rows=1, cols=1, secondary_y=True)
+            
+            fig_line.add_trace(
+                go.Scatter(x=df_hist['total_cycles'], y=df_hist['tempo_avanco_ms'], name="Tempo Avanço (ms)", line=dict(color='#3B82F6', width=2)), 
+                row=1, col=1, secondary_y=False
+            )
+            fig_line.add_trace(
+                go.Scatter(x=df_hist['total_cycles'], y=df_hist['tempo_retorno_ms'], name="Tempo Retorno (ms)", line=dict(color='#F59E0B', width=2)), 
+                row=1, col=1, secondary_y=False
+            )
+            fig_line.add_trace(
+                go.Scatter(x=df_hist['total_cycles'], y=df_hist['vibracao_rms'], name="Vibração (mm/s)", line=dict(color='#10B981', width=1.5, dash='dot')), 
+                row=1, col=1, secondary_y=True
+            )
             
             b_av = ativo['baseline_avanco_ms']
             b_ret = ativo['baseline_retorno_ms']
