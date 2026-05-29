@@ -140,12 +140,16 @@ html, body, [class*="css"] {
 .kpi-red { border-left: 4px solid #EF4444; }
 .kpi-yellow { border-left: 4px solid #F59E0B; }
 
-.panel {
-    background: #0E1625;
-    border: 1px solid #1D2940;
-    border-radius: 12px;
-    padding: 20px;
-    margin-top: 15px;
+/* SEGURANÇA ESTRUTURAL DO DOM: ESTILIZAÇÃO COMPLETA VIA DATA-KEY NATIVO */
+div[data-key="painel_status"], 
+div[data-key="painel_saude"], 
+div[data-key="painel_frota"], 
+div[data-key="painel_historico"] {
+    background: #0E1625 !important;
+    border: 1px solid #1D2940 !important;
+    border-radius: 12px !important;
+    padding: 20px !important;
+    margin-top: 15px !important;
 }
 
 .panel-title {
@@ -235,7 +239,7 @@ def atualizar_status_cilindro(id_documento, campos):
     db.collection('cilindros_ativos').document(id_documento).update(campos)
 
 # =========================================================
-# PIPELINE DE CONSOLIDACAO DE TELEMETRIA WITH DIGITAL FILTER
+# PIPELINE DE CONSOLIDACAO COM FILTRO DE MÉDIA MÓVEL (ANTI-OSCILAÇÃO)
 # =========================================================
 def obter_ativos_consolidados():
     ativos = buscar_cilindros()
@@ -250,7 +254,7 @@ def obter_ativos_consolidados():
     vib_docs = [d.to_dict() for d in vib_stream]
     df_vib = pd.DataFrame(vib_docs) if vib_docs else pd.DataFrame()
     
-    # Baixa buffer estável de histórico para aplicar o filtro de média móvel
+    # Captura amostras históricas para amortecer variações estocásticas de ruído
     hist_stream = db.collection('telemetria_clp').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(100).stream()
     df_hist_global = pd.DataFrame([d.to_dict() for d in hist_stream]) if hist_stream else pd.DataFrame()
     
@@ -283,7 +287,6 @@ def obter_ativos_consolidados():
         b_retorno = ativo.get('baseline_retorno_ms', 0.0)
         aprendizado_concluido = ativo.get('modo_aprendizado_concluido', False)
         
-        # Consolidação da baseline baseada em amostragem em memória
         if ciclos >= 100 and not aprendizado_concluido:
             if not df_hist_global.empty and 'tag_clp' in df_hist_global.columns:
                 df_filtrado = df_hist_global[df_hist_global['tag_clp'] == tag].head(10)
@@ -306,7 +309,7 @@ def obter_ativos_consolidados():
             status = "APRENDIZADO"
             health = 100
         else:
-            # FILTRO DIGITAL: Extrai a média móvel das últimas 5 amostras para atenuar o ruído elétrico/mecânico
+            # FILTRO DIGITAL: Média móvel das últimas 5 janelas de ciclo para estabilizar indicadores gráficas
             if not df_hist_global.empty and 'tag_clp' in df_hist_global.columns:
                 sub_janela = df_hist_global[df_hist_global['tag_clp'] == tag].head(5)
                 if not sub_janela.empty:
@@ -328,7 +331,7 @@ def obter_ativos_consolidados():
             else:
                 health = max(0, 100 - int(pior_desvio_pos * 200))
             
-            # Ajuste fino de zona morta para evitar micro variações na nota de saúde
+            # Filtro de zona morta para estabilização em regime nominal
             if health >= 96: health = 100
             
             if desvio_ava > 0.30 or desvio_ret > 0.30 or desvio_ava < -0.20 or desvio_ret < -0.20 or vibracao > 8.0:
@@ -358,12 +361,12 @@ def hero_header():
     <div class="hero-container">
         <div class="hero-title">Kopempack Operations Center</div>
         <div class="hero-subtitle">Monitoramento Industrial • Telemetria Sensor-Sensor • Análise Preditiva Edge</div>
-        <div class="hero-status">🟢 AGENTE DE TELEMETRIA ATIVO • REAL-TIME CONFIGURADO • SENSOR SCAN: {horario}</div>
+        <div class="hero-status">🟢 SCANNER EM TEMPO REAL ATIVO • TIMESTAMP: {horario}</div>
     </div>
     """, unsafe_allow_html=True)
 
 # =========================================================
-# TELAS DO MONITORAMENTO
+# VISTAS OPERACIONAIS (MONITORAMENTO INDUSTRIAL)
 # =========================================================
 def tela_dashboard():
     hero_header()
@@ -379,20 +382,20 @@ def tela_dashboard():
     falhas = len(df[df['status'] == 'FALHA IMINENTE'])
     media_health = round(df['health_score'].mean(), 1)
     
-    # Painel Dinâmico Superior de Alertas
+    # Sistema Preditivo de Alertas (Banners Dinâmicos de Topo)
     for _, r in df.iterrows():
         if r['status'] == "FALHA IMINENTE":
             st.markdown(f"""
             <div class="alert-banner-critical">
-                <div class="alert-banner-title">🚨 PARADA CRÍTICA EM POTENCIAL DETECTADA: {r['nome_identificacao']}</div>
-                <div class="alert-banner-desc">O componente superou as janelas físicas de tolerância cinemática (Lentidão severa >30% / Perda de acoplamento <-20%) ou atingiu Vibração Crítica superior a 8.0 mm/s.</div>
+                <div class="alert-banner-title">🚨 INTEGRIDADE MECÂNICA COMPROMETIDA: {r['nome_identificacao']}</div>
+                <div class="alert-banner-desc">Componente operando fora das tolerâncias limites de engenharia (Lentidão severa >30% / Perda de acoplamento mecânico <-20% ou Vibração RMS > 8.0 mm/s).</div>
             </div>
             """, unsafe_allow_html=True)
         elif r['status'] == "ATENÇÃO":
             st.markdown(f"""
             <div class="alert-banner-warning">
-                <div class="alert-banner-title">⚠️ DESVIO OPERACIONAL EM PROGRESSO: {r['nome_identificacao']}</div>
-                <div class="alert-banner-desc">Registrada perda gradual de rendimento mecânico com desvio superior a 15% em relação à baseline. Agendar substituição de reparos pneumáticos.</div>
+                <div class="alert-banner-title">⚠️ ANOMALIA OPERACIONAL IDENTIFICADA: {r['nome_identificacao']}</div>
+                <div class="alert-banner-desc">Registrado desvio cinemático de ciclo superior a 15% em relação à baseline nominal estável. Agendar manutenção preventiva de vedações.</div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -404,47 +407,45 @@ def tela_dashboard():
     
     g1, g2 = st.columns(2)
     with g1:
-        st.markdown('<div class="panel">', unsafe_allow_html=True)
-        st.markdown('<div class="panel-title">Status de Operação Global</div>', unsafe_allow_html=True)
-        fig = px.pie(
-            df, names='status', hole=0.70, color='status',
-            color_discrete_map={'NORMAL': '#10B981', 'ATENÇÃO': '#F59E0B', 'FALHA IMINENTE': '#EF4444', 'APRENDIZADO': '#3B82F6'}
-        )
-        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=320, showlegend=True)
-        st.plotly_chart(fig, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container(key="painel_status"):
+            st.markdown('<div class="panel-title">Status de Operação Global</div>', unsafe_allow_html=True)
+            fig = px.pie(
+                df, names='status', hole=0.70, color='status',
+                color_discrete_map={'NORMAL': '#10B981', 'ATENÇÃO': '#F59E0B', 'FALHA IMINENTE': '#EF4444', 'APRENDIZADO': '#3B82F6'}
+            )
+            fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=320, showlegend=True)
+            st.plotly_chart(fig, use_container_width=True)
         
     with g2:
-        st.markdown('<div class="panel">', unsafe_allow_html=True)
-        st.markdown('<div class="panel-title">Índice de Saúde por Ativo</div>', unsafe_allow_html=True)
-        df_sorted = df.sort_values(by='health_score', ascending=True)
-        fig2 = px.bar(
-            df_sorted, x='health_score', y='nome_identificacao', orientation='h', color='health_score',
-            color_continuous_scale=['#EF4444', '#F59E0B', '#10B981'], range_color=[0, 100]
-        )
-        fig2.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=320, xaxis_title="Health Score %", yaxis_title="", coloraxis_showscale=False)
-        st.plotly_chart(fig2, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container(key="painel_saude"):
+            st.markdown('<div class="panel-title">Índice de Saúde por Ativo</div>', unsafe_allow_html=True)
+            df_sorted = df.sort_values(by='health_score', ascending=True)
+            fig2 = px.bar(
+                df_sorted, x='health_score', y='nome_identificacao', orientation='h', color='health_score',
+                color_continuous_scale=['#EF4444', '#F59E0B', '#10B981'], range_color=[0, 100]
+            )
+            fig2.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=320, xaxis_title="Health Score %", yaxis_title="", coloraxis_showscale=False)
+            st.plotly_chart(fig2, use_container_width=True)
         
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-title">Frota de Cilindros Ativos</div>', unsafe_allow_html=True)
-    html_table = """<table class="custom-table"><thead><tr>
-        <th>Identificação</th><th>Tag CLP</th><th>ID Sensor</th><th>Avanço</th><th>Retorno</th><th>Vibração</th><th>Saúde</th><th>Status</th>
-    </tr></thead><tbody>"""
-    for _, r in df.iterrows():
-        badge_color = "#10B981" if r['status']=='NORMAL' else ("#F59E0B" if r['status']=='ATENÇÃO' else ("#EF4444" if r['status']=='FALHA IMINENTE' else "#3B82F6"))
-        html_table += f"""<tr>
-            <td><b>{r['nome_identificacao']}</b></td>
-            <td><span style="font-family:monospace; color:#8CA0B8;">{r['tag_clp_vinculada']}</span></td>
-            <td><span style="font-family:monospace; color:#8CA0B8;">{r['id_sensor_vinculado']}</span></td>
-            <td>{r['tempo_avanco_ms']} ms</td>
-            <td>{r['tempo_retorno_ms']} ms</td>
-            <td>{r['vibracao_rms']} mm/s</td>
-            <td><b>{r['health_score']}%</b></td>
-            <td><span style="color:{badge_color}; font-weight:600;">{r['status']}</span></td>
-        </tr>"""
-    html_table += "</tbody></table></div>"
-    st.markdown(html_table, unsafe_allow_html=True)
+    with st.container(key="painel_frota"):
+        st.markdown('<div class="panel-title">Frota de Cilindros Ativos</div>', unsafe_allow_html=True)
+        html_table = """<table class="custom-table"><thead><tr>
+            <th>Identificação</th><th>Tag CLP</th><th>ID Sensor</th><th>Avanço</th><th>Retorno</th><th>Vibração</th><th>Saúde</th><th>Status</th>
+        </tr></thead><tbody>"""
+        for _, r in df.iterrows():
+            badge_color = "#10B981" if r['status']=='NORMAL' else ("#F59E0B" if r['status']=='ATENÇÃO' else ("#EF4444" if r['status']=='FALHA IMINENTE' else "#3B82F6"))
+            html_table += f"""<tr>
+                <td><b>{r['nome_identificacao']}</b></td>
+                <td><span style="font-family:monospace; color:#8CA0B8;">{r['tag_clp_vinculada']}</span></td>
+                <td><span style="font-family:monospace; color:#8CA0B8;">{r['id_sensor_vinculado']}</span></td>
+                <td>{r['tempo_avanco_ms']} ms</td>
+                <td>{r['tempo_retorno_ms']} ms</td>
+                <td>{r['vibracao_rms']} mm/s</td>
+                <td><b>{r['health_score']}%</b></td>
+                <td><span style="color:{badge_color}; font-weight:600;">{r['status']}</span></td>
+            </tr>"""
+        html_table += "</tbody></table>"
+        st.markdown(html_table, unsafe_allow_html=True)
 
 def tela_comissionamento():
     hero_header()
@@ -517,50 +518,49 @@ def tela_diagnostico():
         c2.metric("Condição Logística", ativo['estado_integridade'])
         c3.metric("Status Operacional", ativo['status'])
 
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-title">Histórico de Séries Temporais Ciclo a Ciclo</div>', unsafe_allow_html=True)
-    
-    clp_stream = db.collection('telemetria_clp').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(150).stream()
-    df_clp_h = pd.DataFrame([d.to_dict() for d in clp_stream])
-    
-    vib_stream = db.collection('telemetria_vib').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(150).stream()
-    df_vib_h = pd.DataFrame([d.to_dict() for d in vib_stream])
-    
-    if not df_clp_h.empty and 'tag_clp' in df_clp_h.columns:
-        df_clp_h = df_clp_h[df_clp_h['tag_clp'] == tag].head(30).reset_index(drop=True)
+    with st.container(key="painel_historico"):
+        st.markdown('<div class="panel-title">Histórico de Séries Temporais Ciclo a Ciclo</div>', unsafe_allow_html=True)
         
-    if not df_vib_h.empty and 'id_sensor' in df_vib_h.columns:
-        df_vib_h = df_vib_h[df_vib_h['id_sensor'] == sensor].head(30).reset_index(drop=True)
+        clp_stream = db.collection('telemetria_clp').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(150).stream()
+        df_clp_h = pd.DataFrame([d.to_dict() for d in clp_stream])
         
-    if not df_clp_h.empty and not df_vib_h.empty and 'total_cycles' in df_clp_h.columns:
-        min_len = min(len(df_clp_h), len(df_vib_h))
-        df_hist = pd.concat([df_clp_h.iloc[:min_len], df_vib_h.get(['vibracao_rms']).iloc[:min_len]], axis=1)
-        df_hist = df_hist.iloc[::-1].reset_index(drop=True)
+        vib_stream = db.collection('telemetria_vib').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(150).stream()
+        df_vib_h = pd.DataFrame([d.to_dict() for d in vib_stream])
         
-        fig_line = make_subplots(rows=1, cols=1, specs=[[{"secondary_y": True}]])
-        
-        fig_line.add_trace(go.Scatter(x=df_hist['total_cycles'], y=df_hist['tempo_avanco_ms'], name="Tempo Avanço", line=dict(color='#3B82F6', width=2)), row=1, col=1, secondary_y=False)
-        fig_line.add_trace(go.Scatter(x=df_hist['total_cycles'], y=df_hist['tempo_retorno_ms'], name="Tempo Retorno", line=dict(color='#F59E0B', width=2)), row=1, col=1, secondary_y=False)
-        fig_line.add_trace(go.Scatter(x=df_hist['total_cycles'], y=df_hist['vibracao_rms'], name="Vibração", line=dict(color='#10B981', width=1.5, dash='dot')), row=1, col=1, secondary_y=True)
-        
-        b_av = ativo['baseline_avanco_ms']
-        b_ret = ativo['baseline_retorno_ms']
-        if b_av > 0:
-            fig_line.add_hline(y=b_av, line_dash="dash", line_color="rgba(59, 130, 246, 0.4)", annotation_text="Base Av.")
-            fig_line.add_hline(y=b_av * 1.30, line_dash="solid", line_color="rgba(239, 68, 68, 0.4)", annotation_text="+30%")
-            fig_line.add_hline(y=b_av * 0.80, line_dash="solid", line_color="rgba(239, 68, 68, 0.4)", annotation_text="-20%")
-        if b_ret > 0:
-            fig_line.add_hline(y=b_ret, line_dash="dash", line_color="rgba(245, 158, 11, 0.4)", annotation_text="Base Ret.")
+        if not df_clp_h.empty and 'tag_clp' in df_clp_h.columns:
+            df_clp_h = df_clp_h[df_clp_h['tag_clp'] == tag].head(30).reset_index(drop=True)
+            
+        if not df_vib_h.empty and 'id_sensor' in df_vib_h.columns:
+            df_vib_h = df_vib_h[df_vib_h['id_sensor'] == sensor].head(30).reset_index(drop=True)
+            
+        if not df_clp_h.empty and not df_vib_h.empty and 'total_cycles' in df_clp_h.columns:
+            min_len = min(len(df_clp_h), len(df_vib_h))
+            df_hist = pd.concat([df_clp_h.iloc[:min_len], df_vib_h.get(['vibracao_rms']).iloc[:min_len]], axis=1)
+            df_hist = df_hist.iloc[::-1].reset_index(drop=True)
+            
+            fig_line = make_subplots(rows=1, cols=1, specs=[[{"secondary_y": True}]])
+            
+            fig_line.add_trace(go.Scatter(x=df_hist['total_cycles'], y=df_hist['tempo_avanco_ms'], name="Tempo Avanço", line=dict(color='#3B82F6', width=2)), row=1, col=1, secondary_y=False)
+            fig_line.add_trace(go.Scatter(x=df_hist['total_cycles'], y=df_hist['tempo_retorno_ms'], name="Tempo Retorno", line=dict(color='#F59E0B', width=2)), row=1, col=1, secondary_y=False)
+            fig_line.add_trace(go.Scatter(x=df_hist['total_cycles'], y=df_hist['vibracao_rms'], name="Vibração", line=dict(color='#10B981', width=1.5, dash='dot')), row=1, col=1, secondary_y=True)
+            
+            b_av = ativo['baseline_avanco_ms']
+            b_ret = ativo['baseline_retorno_ms']
+            if b_av > 0:
+                fig_line.add_hline(y=b_av, line_dash="dash", line_color="rgba(59, 130, 246, 0.4)", annotation_text="Base Av.")
+                fig_line.add_hline(y=b_av * 1.30, line_dash="solid", line_color="rgba(239, 68, 68, 0.4)", annotation_text="+30%")
+                fig_line.add_hline(y=b_av * 0.80, line_dash="solid", line_color="rgba(239, 68, 68, 0.4)", annotation_text="-20%")
+            if b_ret > 0:
+                fig_line.add_hline(y=b_ret, line_dash="dash", line_color="rgba(245, 158, 11, 0.4)", annotation_text="Base Ret.")
 
-        fig_line.update_layout(
-            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=350,
-            xaxis_title="Sequência de Ciclos (Contador CLP)", yaxis_title="Tempo (ms)", yaxis2_title="Vibração (mm/s)",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-        )
-        st.plotly_chart(fig_line, use_container_width=True)
-    else:
-        st.info("Aguardando sincronização de buffers de histórico...")
-    st.markdown('</div>', unsafe_allow_html=True)
+            fig_line.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=350,
+                xaxis_title="Sequência de Ciclos (Contador CLP)", yaxis_title="Tempo (ms)", yaxis2_title="Vibração (mm/s)",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            st.plotly_chart(fig_line, use_container_width=True)
+        else:
+            st.info("Aguardando sincronização de buffers de histórico...")
         
     st.markdown("### Painel de Intervenção e Comandos Remotos")
     with st.container():
@@ -618,18 +618,15 @@ with st.sidebar:
         }
     )
 
-# =========================================================
-# CONTROLADOR DE FLUXO COM ABSOLUTE GUARDA-RELOAD (ANTI-GHOSTING)
-# =========================================================
+# CONTROLADOR DE FLUXO COM ABSOLUTE RETER-RELOAD (ANTI-GHOSTING)
 if "menu_anterior" not in st.session_state:
     st.session_state.menu_anterior = menu
 
-# Se mudou de aba, limpa imediatamente a tela e interrompe loops antigos
 if st.session_state.menu_anterior != menu:
     st.session_state.menu_anterior = menu
     st.rerun()
 
-# Roteador de telas puras
+# Execução limpa das estruturas das abas
 if menu == "Dashboard":
     tela_dashboard()
 elif menu == "Comissionamento":
@@ -637,7 +634,7 @@ elif menu == "Comissionamento":
 elif menu == "Diagnóstico":
     tela_diagnostico()
 
-# Dispara a atualização em segundo plano apenas nas telas de monitoramento dinâmico
+# Loop estável de varredura (Executa de 4 em 4 segundos apenas nas telas dinâmicas)
 if menu in ["Dashboard", "Diagnóstico"]:
     time.sleep(4.0)
     st.rerun()
