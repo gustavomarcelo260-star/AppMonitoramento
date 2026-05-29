@@ -265,7 +265,6 @@ def obter_ativos_consolidados():
         b_retorno = ativo.get('baseline_retorno_ms', 0.0)
         aprendizado_concluido = ativo.get('modo_aprendizado_concluido', False)
         
-        # SOLUÇÃO BYPASS ÍNDICE COMPOSTO: Filtra em memória via Pandas para evitar FailedPrecondition
         if ciclos >= 100 and not aprendizado_concluido:
             historico_stream = db.collection('telemetria_clp')\
                                  .order_by('timestamp', direction=firestore.Query.DESCENDING)\
@@ -511,8 +510,8 @@ def tela_diagnostico():
             df_hist = pd.concat([df_clp_h.iloc[:min_len], df_vib_h.get(['vibracao_rms']).iloc[:min_len]], axis=1)
             df_hist = df_hist.iloc[::-1].reset_index(drop=True)
             
-            # Subplot corrigido com definição de linha e coluna explícita
-            fig_line = make_subplots(rows=1, cols=1, secondary_y=True)
+            # Subplot configurado com matriz de especificações (specs) para aceitar secondary_y
+            fig_line = make_subplots(rows=1, cols=1, specs=[[{"secondary_y": True}]])
             
             fig_line.add_trace(
                 go.Scatter(x=df_hist['total_cycles'], y=df_hist['tempo_avanco_ms'], name="Tempo Avanço (ms)", line=dict(color='#3B82F6', width=2)), 
