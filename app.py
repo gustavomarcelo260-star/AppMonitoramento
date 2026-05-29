@@ -7,6 +7,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timezone
+import time
 
 # =========================================================
 # CONFIGURAÇÃO DA PÁGINA
@@ -113,6 +114,11 @@ html, body, [class*="css"] {
     height: 130px;
 }
 
+.kpi-card:hover {
+    transform: translateY(-2px);
+    border-color: #3B82F6;
+}
+
 .kpi-title {
     color: #7F93AD;
     font-size: 12px;
@@ -134,16 +140,12 @@ html, body, [class*="css"] {
 .kpi-red { border-left: 4px solid #EF4444; }
 .kpi-yellow { border-left: 4px solid #F59E0B; }
 
-/* REQUISITOS DE CONTAINER SEM QUEBRA VIA DATA-KEY */
-div[data-key="painel_status"], 
-div[data-key="painel_saude"], 
-div[data-key="painel_frota"], 
-div[data-key="painel_historico"] {
-    background: #0E1625 !important;
-    border: 1px solid #1D2940 !important;
-    border-radius: 12px !important;
-    padding: 20px !important;
-    margin-top: 15px !important;
+.panel {
+    background: #0E1625;
+    border: 1px solid #1D2940;
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 15px;
 }
 
 .panel-title {
@@ -194,16 +196,8 @@ div[data-key="painel_historico"] {
     color: #FBBF24;
 }
 
-.alert-banner-title {
-    font-weight: 700;
-    font-size: 14px;
-    margin-bottom: 2px;
-}
-
-.alert-banner-desc {
-    font-size: 13px;
-    opacity: 0.9;
-}
+.alert-banner-title { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
+.alert-banner-desc { font-size: 13px; opacity: 0.9; }
 
 .custom-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
 .custom-table th { padding: 12px; color: #7F93AD; text-transform: uppercase; font-size: 11px; border-bottom: 1px solid #1D2940; }
@@ -241,7 +235,7 @@ def atualizar_status_cilindro(id_documento, campos):
     db.collection('cilindros_ativos').document(id_documento).update(campos)
 
 # =========================================================
-# PIPELINE DE CONSOLIDACAO DE TELEMETRIA
+# PIPELINE DE CONSOLIDACAO DE TELEMETRIA WITH DIGITAL FILTER
 # =========================================================
 def obter_ativos_consolidados():
     ativos = buscar_cilindros()
@@ -255,6 +249,10 @@ def obter_ativos_consolidados():
     vib_stream = db.collection('estado_atual_vib').stream()
     vib_docs = [d.to_dict() for d in vib_stream]
     df_vib = pd.DataFrame(vib_docs) if vib_docs else pd.DataFrame()
+    
+    # Baixa buffer estável de histórico para aplicar o filtro de média móvel
+    hist_stream = db.collection('telemetria_clp').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(100).stream()
+    df_hist_global = pd.DataFrame([d.to_dict() for d in hist_stream]) if hist_stream else pd.DataFrame()
     
     lista_consolidada = []
     
@@ -285,17 +283,10 @@ def obter_ativos_consolidados():
         b_retorno = ativo.get('baseline_retorno_ms', 0.0)
         aprendizado_concluido = ativo.get('modo_aprendizado_concluido', False)
         
+        # Consolidação da baseline baseada em amostragem em memória
         if ciclos >= 100 and not aprendizado_concluido:
-            historico_stream = db.collection('telemetria_clp')\
-                                 .order_by('timestamp', direction=firestore.Query.DESCENDING)\
-                                 .limit(200)\
-                                 .stream()
-            all_pontos = [d.to_dict() for d in historico_stream]
-            
-            if all_pontos:
-                df_all_p = pd.DataFrame(all_pontos)
-                df_filtrado = df_all_p[df_all_p['tag_clp'] == tag].head(10)
-                
+            if not df_hist_global.empty and 'tag_clp' in df_hist_global.columns:
+                df_filtrado = df_hist_global[df_hist_global['tag_clp'] == tag].head(10)
                 if not df_filtrado.empty:
                     b_avanco = round(df_filtrado['tempo_avanco_ms'].mean(), 1)
                     b_retorno = round(df_filtrado['tempo_retorno_ms'].mean(), 1)
@@ -315,8 +306,19 @@ def obter_ativos_consolidados():
             status = "APRENDIZADO"
             health = 100
         else:
-            desvio_ava = (t_avanco - b_avanco) / b_avanco if b_avanco > 0 else 0
-            desvio_ret = (t_retorno - b_retorno) / b_retorno if b_retorno > 0 else 0
+            # FILTRO DIGITAL: Extrai a média móvel das últimas 5 amostras para atenuar o ruído elétrico/mecânico
+            if not df_hist_global.empty and 'tag_clp' in df_hist_global.columns:
+                sub_janela = df_hist_global[df_hist_global['tag_clp'] == tag].head(5)
+                if not sub_janela.empty:
+                    t_avanco_filtrado = sub_janela['tempo_avanco_ms'].mean()
+                    t_retorno_filtrado = sub_janela['tempo_retorno_ms'].mean()
+                else:
+                    t_avanco_filtrado, t_retorno_filtrado = t_avanco, t_retorno
+            else:
+                t_avanco_filtrado, t_retorno_filtrado = t_avanco, t_retorno
+
+            desvio_ava = (t_avanco_filtrado - b_avanco) / b_avanco if b_avanco > 0 else 0
+            desvio_ret = (t_retorno_filtrado - b_retorno) / b_retorno if b_retorno > 0 else 0
             
             pior_desvio_pos = max(0, desvio_ava, desvio_ret)
             pior_desvio_neg = min(0, desvio_ava, desvio_ret)
@@ -325,6 +327,9 @@ def obter_ativos_consolidados():
                 health = max(0, 100 - int(abs(pior_desvio_neg) * 300))
             else:
                 health = max(0, 100 - int(pior_desvio_pos * 200))
+            
+            # Ajuste fino de zona morta para evitar micro variações na nota de saúde
+            if health >= 96: health = 100
             
             if desvio_ava > 0.30 or desvio_ret > 0.30 or desvio_ava < -0.20 or desvio_ret < -0.20 or vibracao > 8.0:
                 status = "FALHA IMINENTE"
@@ -353,15 +358,15 @@ def hero_header():
     <div class="hero-container">
         <div class="hero-title">Kopempack Operations Center</div>
         <div class="hero-subtitle">Monitoramento Industrial • Telemetria Sensor-Sensor • Análise Preditiva Edge</div>
-        <div class="hero-status">🟢 AGENTE DE TELEMETRIA ATIVO • TIMESTAMP: {horario}</div>
+        <div class="hero-status">🟢 AGENTE DE TELEMETRIA ATIVO • REAL-TIME CONFIGURADO • SENSOR SCAN: {horario}</div>
     </div>
     """, unsafe_allow_html=True)
 
 # =========================================================
-# FRAGMENTOS DE ATUALIZAÇÃO REATIVA
+# TELAS DO MONITORAMENTO
 # =========================================================
-@st.fragment(run_every=4)
-def render_conteudo_dashboard():
+def tela_dashboard():
+    hero_header()
     dados = obter_ativos_consolidados()
     
     if not dados:
@@ -374,203 +379,72 @@ def render_conteudo_dashboard():
     falhas = len(df[df['status'] == 'FALHA IMINENTE'])
     media_health = round(df['health_score'].mean(), 1)
     
-    # Banners de Alertas Gerenciais
+    # Painel Dinâmico Superior de Alertas
     for _, r in df.iterrows():
         if r['status'] == "FALHA IMINENTE":
             st.markdown(f"""
             <div class="alert-banner-critical">
                 <div class="alert-banner-title">🚨 PARADA CRÍTICA EM POTENCIAL DETECTADA: {r['nome_identificacao']}</div>
-                <div class="alert-banner-desc">O componente operou fora dos limites de segurança tolerados (Desvio crítico de tempo cinemático ou Vibração RMS > 8.0 mm/s). Recomenda-se intervenção mecânica imediata.</div>
+                <div class="alert-banner-desc">O componente superou as janelas físicas de tolerância cinemática (Lentidão severa >30% / Perda de acoplamento <-20%) ou atingiu Vibração Crítica superior a 8.0 mm/s.</div>
             </div>
             """, unsafe_allow_html=True)
         elif r['status'] == "ATENÇÃO":
             st.markdown(f"""
             <div class="alert-banner-warning">
-                <div class="alert-banner-title">⚠️ DESVIO OPERACIONAL DETECTADO: {r['nome_identificacao']}</div>
-                <div class="alert-banner-desc">O atuador apresentou perda gradual de performance cinemática (Desvio > 15% em relação à baseline estável). Agendar inspeção técnica de vedação pneumática.</div>
+                <div class="alert-banner-title">⚠️ DESVIO OPERACIONAL EM PROGRESSO: {r['nome_identificacao']}</div>
+                <div class="alert-banner-desc">Registrada perda gradual de rendimento mecânico com desvio superior a 15% em relação à baseline. Agendar substituição de reparos pneumáticos.</div>
             </div>
             """, unsafe_allow_html=True)
 
-    # KPIs
     c1, c2, c3, c4 = st.columns(4)
     with c1: render_kpi("Ativos Monitorados", total, "kpi-blue")
     with c2: render_kpi("Alertas de Sistema", alertas, "kpi-yellow")
     with c3: render_kpi("Falhas Críticas", falhas, "kpi-red")
     with c4: render_kpi("Health Score Médio", f"{media_health}%", "kpi-green")
     
-    # Gráficos
     g1, g2 = st.columns(2)
     with g1:
-        with st.container(key="painel_status"):
-            st.markdown('<div class="panel-title">Status de Operação Global</div>', unsafe_allow_html=True)
-            fig = px.pie(
-                df, names='status', hole=0.70, color='status',
-                color_discrete_map={'NORMAL': '#10B981', 'ATENÇÃO': '#F59E0B', 'FALHA IMINENTE': '#EF4444', 'APRENDIZADO': '#3B82F6'}
-            )
-            fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=320, showlegend=True)
-            st.plotly_chart(fig, use_container_width=True)
+        st.markdown('<div class="panel">', unsafe_allow_html=True)
+        st.markdown('<div class="panel-title">Status de Operação Global</div>', unsafe_allow_html=True)
+        fig = px.pie(
+            df, names='status', hole=0.70, color='status',
+            color_discrete_map={'NORMAL': '#10B981', 'ATENÇÃO': '#F59E0B', 'FALHA IMINENTE': '#EF4444', 'APRENDIZADO': '#3B82F6'}
+        )
+        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=320, showlegend=True)
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
         
     with g2:
-        with st.container(key="painel_saude"):
-            st.markdown('<div class="panel-title">Índice de Saúde por Ativo</div>', unsafe_allow_html=True)
-            df_sorted = df.sort_values(by='health_score', ascending=True)
-            fig2 = px.bar(
-                df_sorted, x='health_score', y='nome_identificacao', orientation='h', color='health_score',
-                color_continuous_scale=['#EF4444', '#F59E0B', '#10B981'], range_color=[0, 100]
-            )
-            fig2.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=320, xaxis_title="Health Score %", yaxis_title="", coloraxis_showscale=False)
-            st.plotly_chart(fig2, use_container_width=True)
+        st.markdown('<div class="panel">', unsafe_allow_html=True)
+        st.markdown('<div class="panel-title">Índice de Saúde por Ativo</div>', unsafe_allow_html=True)
+        df_sorted = df.sort_values(by='health_score', ascending=True)
+        fig2 = px.bar(
+            df_sorted, x='health_score', y='nome_identificacao', orientation='h', color='health_score',
+            color_continuous_scale=['#EF4444', '#F59E0B', '#10B981'], range_color=[0, 100]
+        )
+        fig2.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=320, xaxis_title="Health Score %", yaxis_title="", coloraxis_showscale=False)
+        st.plotly_chart(fig2, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
         
-    # Tabela Frota
-    with st.container(key="painel_frota"):
-        st.markdown('<div class="panel-title">Frota de Cilindros Ativos</div>', unsafe_allow_html=True)
-        html_table = """<table class="custom-table"><thead><tr>
-            <th>Identificação</th><th>Tag CLP</th><th>ID Sensor</th><th>Avanço</th><th>Retorno</th><th>Vibração</th><th>Saúde</th><th>Status</th>
-        </tr></thead><tbody>"""
-        for _, r in df.iterrows():
-            badge_color = "#10B981" if r['status']=='NORMAL' else ("#F59E0B" if r['status']=='ATENÇÃO' else ("#EF4444" if r['status']=='FALHA IMINENTE' else "#3B82F6"))
-            html_table += f"""<tr>
-                <td><b>{r['nome_identificacao']}</b></td>
-                <td><span style="font-family:monospace; color:#8CA0B8;">{r['tag_clp_vinculada']}</span></td>
-                <td><span style="font-family:monospace; color:#8CA0B8;">{r['id_sensor_vinculado']}</span></td>
-                <td>{r['tempo_avanco_ms']} ms</td>
-                <td>{r['tempo_retorno_ms']} ms</td>
-                <td>{r['vibracao_rms']} mm/s</td>
-                <td><b>{r['health_score']}%</b></td>
-                <td><span style="color:{badge_color}; font-weight:600;">{r['status']}</span></td>
-            </tr>"""
-        html_table += "</tbody></table>"
-        st.markdown(html_table, unsafe_allow_html=True)
-
-
-@st.fragment(run_every=4)
-def render_conteudo_diagnostico(dados):
-    mapa = {c['nome_identificacao']: c for c in dados}
-    selecao = st.selectbox("Selecione o Ativo para Diagnóstico Avançado:", list(mapa.keys()))
-    ativo = mapa[selecao]
-    id_doc = ativo['id_documento']
-    health = ativo['health_score']
-    tag = ativo['tag_clp_vinculada']
-    sensor = ativo['id_sensor_vinculado']
-    
-    col_g, col_m = st.columns([1, 2])
-    with col_g:
-        fig = go.Figure(go.Indicator(
-            mode="gauge+number", value=health,
-            number={'suffix': '%', 'font': {'size': 38, 'color': 'white'}},
-            gauge={
-                'axis': {'range': [0, 100], 'visible': False}, 'bar': {'color': '#2563EB'}, 'bgcolor': '#111827',
-                'steps': [{'range': [0, 40], 'color': 'rgba(239, 68, 68, 0.2)'}, {'range': [40, 75], 'color': 'rgba(245, 158, 11, 0.2)'}, {'range': [75, 100], 'color': 'rgba(16, 185, 129, 0.1)'}]
-            }
-        ))
-        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', height=280, margin=dict(t=10, b=10, l=10, r=10))
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with col_m:
-        st.markdown("<br>", unsafe_allow_html=True)
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Tempo Avanço (Último)", f"{ativo['tempo_avanco_ms']} ms", f"Base: {ativo['baseline_avanco_ms']} ms", delta_color="inverse")
-        c2.metric("Tempo Retorno (Último)", f"{ativo['tempo_retorno_ms']} ms", f"Base: {ativo['baseline_retorno_ms']} ms", delta_color="inverse")
-        c3.metric("Vibração de Campo", f"{ativo['vibracao_rms']} mm/s")
-        
-        c1.metric("Ciclos Totais (CLP)", f"{ativo['ciclos_acumulados']:,}".replace(",", "."))
-        c2.metric("Condição Logística", ativo['estado_integridade'])
-        c3.metric("Status Operacional", ativo['status'])
-
-    with st.container(key="painel_historico"):
-        st.markdown('<div class="panel-title">Histórico de Séries Temporais Ciclo a Ciclo</div>', unsafe_allow_html=True)
-        
-        clp_stream = db.collection('telemetria_clp').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(150).stream()
-        df_clp_h = pd.DataFrame([d.to_dict() for d in clp_stream])
-        
-        vib_stream = db.collection('telemetria_vib').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(150).stream()
-        df_vib_h = pd.DataFrame([d.to_dict() for d in vib_stream])
-        
-        if not df_clp_h.empty and 'tag_clp' in df_clp_h.columns:
-            df_clp_h = df_clp_h[df_clp_h['tag_clp'] == tag].head(30).reset_index(drop=True)
-            
-        if not df_vib_h.empty and 'id_sensor' in df_vib_h.columns:
-            df_vib_h = df_vib_h[df_vib_h['id_sensor'] == sensor].head(30).reset_index(drop=True)
-            
-        if not df_clp_h.empty and not df_vib_h.empty and 'total_cycles' in df_clp_h.columns:
-            min_len = min(len(df_clp_h), len(df_vib_h))
-            df_hist = pd.concat([df_clp_h.iloc[:min_len], df_vib_h.get(['vibracao_rms']).iloc[:min_len]], axis=1)
-            df_hist = df_hist.iloc[::-1].reset_index(drop=True)
-            
-            fig_line = make_subplots(rows=1, cols=1, specs=[[{"secondary_y": True}]])
-            
-            fig_line.add_trace(
-                go.Scatter(x=df_hist['total_cycles'], y=df_hist['tempo_avanco_ms'], name="Tempo Avanço (ms)", line=dict(color='#3B82F6', width=2)), 
-                row=1, col=1, secondary_y=False
-            )
-            fig_line.add_trace(
-                go.Scatter(x=df_hist['total_cycles'], y=df_hist['tempo_retorno_ms'], name="Tempo Retorno (ms)", line=dict(color='#F59E0B', width=2)), 
-                row=1, col=1, secondary_y=False
-            )
-            fig_line.add_trace(
-                go.Scatter(x=df_hist['total_cycles'], y=df_hist['vibracao_rms'], name="Vibração (mm/s)", line=dict(color='#10B981', width=1.5, dash='dot')), 
-                row=1, col=1, secondary_y=True
-            )
-            
-            b_av = ativo['baseline_avanco_ms']
-            b_ret = ativo['baseline_retorno_ms']
-            if b_av > 0:
-                fig_line.add_hline(y=b_av, line_dash="dash", line_color="rgba(59, 130, 246, 0.4)", annotation_text="Base Av.")
-                fig_line.add_hline(y=b_av * 1.30, line_dash="solid", line_color="rgba(239, 68, 68, 0.4)", annotation_text="+30%")
-                fig_line.add_hline(y=b_av * 0.80, line_dash="solid", line_color="rgba(239, 68, 68, 0.4)", annotation_text="-20%")
-            if b_ret > 0:
-                fig_line.add_hline(y=b_ret, line_dash="dash", line_color="rgba(245, 158, 11, 0.4)", annotation_text="Base Ret.")
-
-            fig_line.update_layout(
-                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=350,
-                xaxis_title="Sequência de Ciclos (Contador CLP)", yaxis_title="Tempo (ms)", yaxis2_title="Vibração (mm/s)",
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-            )
-            st.plotly_chart(fig_line, use_container_width=True)
-        else:
-            st.info("Aguardando sincronização de buffers de histórico...")
-        
-    st.markdown("### Painel de Intervenção e Comandos Remotos")
-    
-    with st.container():
-        a1, a2 = st.columns(2)
-        
-        with a1:
-            st.markdown("#### Recalibração Temporal")
-            st.caption("Invalida o aprendizado anterior e força a captura de novas baselines.")
-            if st.button("Forçar Nova Baseline"):
-                atualizar_status_cilindro(id_doc, {"modo_aprendizado_concluido": False, "baseline_avanco_ms": 0.0, "baseline_retorno_ms": 0.0})
-                st.success("Comando enviado. Iniciando ciclo de aprendizado.")
-            
-        with a2:
-            st.markdown("#### Ordem de Manutenção")
-            st.caption("Atualiza as tags patrimoniais após intervenção física de campo.")
-            op = st.selectbox("Tipo de Intervenção", ["Ajuste/Reparo de Vedação", "Substituição Integral do Componente"])
-            if st.button("Registrar Intervenção"):
-                if "Substituição" in op:
-                    atualizar_status_cilindro(id_doc, {"estado_integridade": "ORIGINAL", "modo_aprendizado_concluido": False, "baseline_avanco_ms": 0.0, "baseline_retorno_ms": 0.0})
-                    st.success("Componente resetado no log logístico.")
-                else:
-                    atualizar_status_cilindro(id_doc, {"estado_integridade": "REPARADO"})
-                    st.warning("Status modificado para REPARADO.")
-
-# =========================================================
-# HELPER COMPONENTS
-# =========================================================
-def render_kpi(titulo, valor, classe):
-    st.markdown(f"""
-    <div class="kpi-card {classe}">
-        <div class="kpi-title">{titulo}</div>
-        <div class="kpi-value">{valor}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# =========================================================
-# TELAS E DIRECIONAMENTO
-# =========================================================
-def tela_dashboard():
-    hero_header()
-    render_conteudo_dashboard()
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.markdown('<div class="panel-title">Frota de Cilindros Ativos</div>', unsafe_allow_html=True)
+    html_table = """<table class="custom-table"><thead><tr>
+        <th>Identificação</th><th>Tag CLP</th><th>ID Sensor</th><th>Avanço</th><th>Retorno</th><th>Vibração</th><th>Saúde</th><th>Status</th>
+    </tr></thead><tbody>"""
+    for _, r in df.iterrows():
+        badge_color = "#10B981" if r['status']=='NORMAL' else ("#F59E0B" if r['status']=='ATENÇÃO' else ("#EF4444" if r['status']=='FALHA IMINENTE' else "#3B82F6"))
+        html_table += f"""<tr>
+            <td><b>{r['nome_identificacao']}</b></td>
+            <td><span style="font-family:monospace; color:#8CA0B8;">{r['tag_clp_vinculada']}</span></td>
+            <td><span style="font-family:monospace; color:#8CA0B8;">{r['id_sensor_vinculado']}</span></td>
+            <td>{r['tempo_avanco_ms']} ms</td>
+            <td>{r['tempo_retorno_ms']} ms</td>
+            <td>{r['vibracao_rms']} mm/s</td>
+            <td><b>{r['health_score']}%</b></td>
+            <td><span style="color:{badge_color}; font-weight:600;">{r['status']}</span></td>
+        </tr>"""
+    html_table += "</tbody></table></div>"
+    st.markdown(html_table, unsafe_allow_html=True)
 
 def tela_comissionamento():
     hero_header()
@@ -606,10 +480,119 @@ def tela_comissionamento():
 def tela_diagnostico():
     hero_header()
     dados = obter_ativos_consolidados()
+    
     if not dados:
         st.warning("Nenhum ativo localizado para inspeção técnica.")
         return
-    render_conteudo_diagnostico(dados)
+        
+    mapa = {c['nome_identificacao']: c for c in dados}
+    selecao = st.selectbox("Selecione o Ativo para Diagnóstico Avançado:", list(mapa.keys()))
+    ativo = mapa[selecao]
+    id_doc = ativo['id_documento']
+    health = ativo['health_score']
+    tag = ativo['tag_clp_vinculada']
+    sensor = ativo['id_sensor_vinculado']
+    
+    col_g, col_m = st.columns([1, 2])
+    with col_g:
+        fig = go.Figure(go.Indicator(
+            mode="gauge+number", value=health,
+            number={'suffix': '%', 'font': {'size': 38, 'color': 'white'}},
+            gauge={
+                'axis': {'range': [0, 100], 'visible': False}, 'bar': {'color': '#2563EB'}, 'bgcolor': '#111827',
+                'steps': [{'range': [0, 40], 'color': 'rgba(239, 68, 68, 0.2)'}, {'range': [40, 75], 'color': 'rgba(245, 158, 11, 0.2)'}, {'range': [75, 100], 'color': 'rgba(16, 185, 129, 0.1)'}]
+            }
+        ))
+        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', height=280, margin=dict(t=10, b=10, l=10, r=10))
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with col_m:
+        st.markdown("<br>", unsafe_allow_html=True)
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Tempo Avanço (Último)", f"{ativo['tempo_avanco_ms']} ms", f"Base: {ativo['baseline_avanco_ms']} ms", delta_color="inverse")
+        c2.metric("Tempo Retorno (Último)", f"{ativo['tempo_retorno_ms']} ms", f"Base: {ativo['baseline_retorno_ms']} ms", delta_color="inverse")
+        c3.metric("Vibração de Campo", f"{ativo['vibracao_rms']} mm/s")
+        
+        c1.metric("Ciclos Totais (CLP)", f"{ativo['ciclos_acumulados']:,}".replace(",", "."))
+        c2.metric("Condição Logística", ativo['estado_integridade'])
+        c3.metric("Status Operacional", ativo['status'])
+
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.markdown('<div class="panel-title">Histórico de Séries Temporais Ciclo a Ciclo</div>', unsafe_allow_html=True)
+    
+    clp_stream = db.collection('telemetria_clp').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(150).stream()
+    df_clp_h = pd.DataFrame([d.to_dict() for d in clp_stream])
+    
+    vib_stream = db.collection('telemetria_vib').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(150).stream()
+    df_vib_h = pd.DataFrame([d.to_dict() for d in vib_stream])
+    
+    if not df_clp_h.empty and 'tag_clp' in df_clp_h.columns:
+        df_clp_h = df_clp_h[df_clp_h['tag_clp'] == tag].head(30).reset_index(drop=True)
+        
+    if not df_vib_h.empty and 'id_sensor' in df_vib_h.columns:
+        df_vib_h = df_vib_h[df_vib_h['id_sensor'] == sensor].head(30).reset_index(drop=True)
+        
+    if not df_clp_h.empty and not df_vib_h.empty and 'total_cycles' in df_clp_h.columns:
+        min_len = min(len(df_clp_h), len(df_vib_h))
+        df_hist = pd.concat([df_clp_h.iloc[:min_len], df_vib_h.get(['vibracao_rms']).iloc[:min_len]], axis=1)
+        df_hist = df_hist.iloc[::-1].reset_index(drop=True)
+        
+        fig_line = make_subplots(rows=1, cols=1, specs=[[{"secondary_y": True}]])
+        
+        fig_line.add_trace(go.Scatter(x=df_hist['total_cycles'], y=df_hist['tempo_avanco_ms'], name="Tempo Avanço", line=dict(color='#3B82F6', width=2)), row=1, col=1, secondary_y=False)
+        fig_line.add_trace(go.Scatter(x=df_hist['total_cycles'], y=df_hist['tempo_retorno_ms'], name="Tempo Retorno", line=dict(color='#F59E0B', width=2)), row=1, col=1, secondary_y=False)
+        fig_line.add_trace(go.Scatter(x=df_hist['total_cycles'], y=df_hist['vibracao_rms'], name="Vibração", line=dict(color='#10B981', width=1.5, dash='dot')), row=1, col=1, secondary_y=True)
+        
+        b_av = ativo['baseline_avanco_ms']
+        b_ret = ativo['baseline_retorno_ms']
+        if b_av > 0:
+            fig_line.add_hline(y=b_av, line_dash="dash", line_color="rgba(59, 130, 246, 0.4)", annotation_text="Base Av.")
+            fig_line.add_hline(y=b_av * 1.30, line_dash="solid", line_color="rgba(239, 68, 68, 0.4)", annotation_text="+30%")
+            fig_line.add_hline(y=b_av * 0.80, line_dash="solid", line_color="rgba(239, 68, 68, 0.4)", annotation_text="-20%")
+        if b_ret > 0:
+            fig_line.add_hline(y=b_ret, line_dash="dash", line_color="rgba(245, 158, 11, 0.4)", annotation_text="Base Ret.")
+
+        fig_line.update_layout(
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=350,
+            xaxis_title="Sequência de Ciclos (Contador CLP)", yaxis_title="Tempo (ms)", yaxis2_title="Vibração (mm/s)",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        st.plotly_chart(fig_line, use_container_width=True)
+    else:
+        st.info("Aguardando sincronização de buffers de histórico...")
+    st.markdown('</div>', unsafe_allow_html=True)
+        
+    st.markdown("### Painel de Intervenção e Comandos Remotos")
+    with st.container():
+        a1, a2 = st.columns(2)
+        with a1:
+            st.markdown("#### Recalibração Temporal")
+            st.caption("Invalida o aprendizado anterior e força a captura de novas baselines.")
+            if st.button("Forçar Nova Baseline"):
+                atualizar_status_cilindro(id_doc, {"modo_aprendizado_concluido": False, "baseline_avanco_ms": 0.0, "baseline_retorno_ms": 0.0})
+                st.success("Comando enviado. Iniciando ciclo de aprendizado.")
+        with a2:
+            st.markdown("#### Ordem de Manutenção")
+            st.caption("Atualiza as tags patrimoniais após intervenção física de campo.")
+            op = st.selectbox("Tipo de Intervenção", ["Ajuste/Reparo de Vedação", "Substituição Integral do Componente"])
+            if st.button("Registrar Intervenção"):
+                if "Substituição" in op:
+                    atualizar_status_cilindro(id_doc, {"estado_integridade": "ORIGINAL", "modo_aprendizado_concluido": False, "baseline_avanco_ms": 0.0, "baseline_retorno_ms": 0.0})
+                    st.success("Componente resetado no log logístico.")
+                else:
+                    atualizar_status_cilindro(id_doc, {"estado_integridade": "REPARADO"})
+                    st.warning("Status modificado para REPARADO.")
+
+# =========================================================
+# HELPER COMPONENTS
+# =========================================================
+def render_kpi(titulo, valor, classe):
+    st.markdown(f"""
+    <div class="kpi-card {classe}">
+        <div class="kpi-title">{titulo}</div>
+        <div class="kpi-value">{valor}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # =========================================================
 # MENUS & NAVEGAÇÃO (BARRA LATERAL)
@@ -635,9 +618,26 @@ with st.sidebar:
         }
     )
 
+# =========================================================
+# CONTROLADOR DE FLUXO COM ABSOLUTE GUARDA-RELOAD (ANTI-GHOSTING)
+# =========================================================
+if "menu_anterior" not in st.session_state:
+    st.session_state.menu_anterior = menu
+
+# Se mudou de aba, limpa imediatamente a tela e interrompe loops antigos
+if st.session_state.menu_anterior != menu:
+    st.session_state.menu_anterior = menu
+    st.rerun()
+
+# Roteador de telas puras
 if menu == "Dashboard":
     tela_dashboard()
 elif menu == "Comissionamento":
     tela_comissionamento()
 elif menu == "Diagnóstico":
     tela_diagnostico()
+
+# Dispara a atualização em segundo plano apenas nas telas de monitoramento dinâmico
+if menu in ["Dashboard", "Diagnóstico"]:
+    time.sleep(4.0)
+    st.rerun()
