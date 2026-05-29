@@ -19,43 +19,169 @@ st.set_page_config(
 )
 
 # =========================================================
-# CSS GLOBAL
+# CSS GLOBAL - TESLA & LOVABLE DARK OPS STYLE
 # =========================================================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-html, body, [class*="css"] { font-family: 'Inter', sans-serif; background-color: #070B14 !important; color: #F1F5F9; }
-[data-testid="stAppViewContainer"] { background: #070B14; }
-[data-testid="stHeader"] { background: rgba(0,0,0,0); }
-#MainMenu, footer { visibility: hidden; }
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+    background-color: #070B14 !important;
+    color: #F1F5F9;
+}
 
-[data-testid="stSidebar"] { background: #0B111C; border-right: 1px solid #182234; }
-.sidebar-logo { text-align: center; padding-top: 10px; padding-bottom: 20px; border-bottom: 1px solid #182234; margin-bottom: 20px; }
-.sidebar-title { color: white; font-size: 22px; font-weight: 700; margin-top: 15px; letter-spacing: 0.15em; }
-.sidebar-subtitle { color: #6E7C93; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+[data-testid="stAppViewContainer"] {
+    background: #070B14;
+}
 
-.hero-container { background: linear-gradient(135deg,#111827,#0B1220); border: 1px solid #1B263B; padding: 24px; border-radius: 12px; margin-bottom: 25px; }
-.hero-title { color: white; font-size: 32px; font-weight: 700; margin-bottom: 6px; }
-.hero-subtitle { color: #8CA0B8; font-size: 14px; }
-.hero-status { background: #0F1728; border: 1px solid #1E2B45; padding: 8px 14px; border-radius: 9999px; display: inline-block; margin-top: 14px; color: #10B981; font-size: 12px; font-weight: 600; }
+[data-testid="stHeader"] {
+    background: rgba(0,0,0,0);
+}
 
-.kpi-card { background: linear-gradient(180deg,#121A2B,#0D1422); border: 1px solid #1E2B45; border-radius: 12px; padding: 20px; height: 130px; }
-.kpi-title { color: #7F93AD; font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
-.kpi-value { color: white; font-size: 36px; font-weight: 700; margin-top: 12px; line-height: 1; }
+#MainMenu, footer {
+    visibility: hidden;
+}
+
+/* SIDEBAR */
+[data-testid="stSidebar"] {
+    background: #0B111C;
+    border-right: 1px solid #182234;
+}
+
+.sidebar-logo {
+    text-align: center;
+    padding-top: 10px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #182234;
+    margin-bottom: 20px;
+}
+
+.sidebar-title {
+    color: white;
+    font-size: 22px;
+    font-weight: 700;
+    margin-top: 15px;
+    letter-spacing: 0.15em;
+}
+
+.sidebar-subtitle {
+    color: #6E7C93;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* HEADER HERO */
+.hero-container {
+    background: linear-gradient(135deg,#111827,#0B1220);
+    border: 1px solid #1B263B;
+    padding: 24px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+}
+
+.hero-title {
+    color: white;
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.hero-subtitle {
+    color: #8CA0B8;
+    font-size: 14px;
+}
+
+.hero-status {
+    background: #0F1728;
+    border: 1px solid #1E2B45;
+    padding: 8px 14px;
+    border-radius: 9999px;
+    display: inline-block;
+    margin-top: 14px;
+    color: #10B981;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* KPI CARDS */
+.kpi-card {
+    background: linear-gradient(180deg,#121A2B,#0D1422);
+    border: 1px solid #1E2B45;
+    border-radius: 12px;
+    padding: 20px;
+    height: 130px;
+}
+
+.kpi-title {
+    color: #7F93AD;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.kpi-value {
+    color: white;
+    font-size: 36px;
+    font-weight: 700;
+    margin-top: 12px;
+    line-height: 1;
+}
+
 .kpi-blue { border-left: 4px solid #3B82F6; }
 .kpi-green { border-left: 4px solid #10B981; }
 .kpi-red { border-left: 4px solid #EF4444; }
 .kpi-yellow { border-left: 4px solid #F59E0B; }
 
-.panel { background: #0E1625; border: 1px solid #1D2940; border-radius: 12px; padding: 20px; margin-top: 15px; }
-.panel-title { color: white; font-size: 16px; font-weight: 600; margin-bottom: 15px; }
+/* ESTILIZAÇÃO VIA DATA-KEY (MANTÉM O DOM SEGURO) */
+div[data-key="painel_status"], 
+div[data-key="painel_saude"], 
+div[data-key="painel_frota"], 
+div[data-key="painel_historico"] {
+    background: #0E1625 !important;
+    border: 1px solid #1D2940 !important;
+    border-radius: 12px !important;
+    padding: 20px !important;
+    margin-top: 15px !important;
+}
 
-.stButton > button { width: 100%; border-radius: 8px !important; border: none !important; background: #2563EB !important; color: white !important; font-weight: 600 !important; padding: 10px !important; }
+.panel-title {
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 15px;
+}
+
+/* INPUTS E BOTÕES */
+.stButton > button {
+    width: 100%;
+    border-radius: 8px !important;
+    border: none !important;
+    background: #2563EB !important;
+    color: white !important;
+    font-weight: 600 !important;
+    padding: 10px !important;
+}
+
 .stButton > button:hover { background: #1D4ED8 !important; }
-.stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] { background: #111827 !important; border: 1px solid #1E293B !important; color: white !important; border-radius: 8px !important; }
 
-.alert-box { background: #101826; border: 1px solid #1F2A40; border-radius: 8px; padding: 14px; margin-bottom: 10px; }
+.stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] {
+    background: #111827 !important;
+    border: 1px solid #1E293B !important;
+    color: white !important;
+    border-radius: 8px !important;
+}
+
+.alert-box {
+    background: #101826;
+    border: 1px solid #1F2A40;
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 10px;
+}
+
 .alert-title { color: white; font-weight: 600; font-size: 13px; }
 .alert-sub { color: #8CA0B8; font-size: 12px; margin-top: 2px; }
 
@@ -139,7 +265,6 @@ def obter_ativos_consolidados():
         b_retorno = ativo.get('baseline_retorno_ms', 0.0)
         aprendizado_concluido = ativo.get('modo_aprendizado_concluido', False)
         
-        # Extração matemática da baseline com base nos 10 pontos do histórico comprimido
         if ciclos >= 100 and not aprendizado_concluido:
             historico_baseline = db.collection('telemetria_clp')\
                                    .where('tag_clp', '==', tag)\
@@ -208,14 +333,6 @@ def hero_header():
     </div>
     """, unsafe_allow_html=True)
 
-def render_kpi(titulo, valor, classe):
-    st.markdown(f"""
-    <div class="kpi-card {classe}">
-        <div class="kpi-title">{titulo}</div>
-        <div class="kpi-value">{valor}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
 # =========================================================
 # TELA: DASHBOARD
 # =========================================================
@@ -241,46 +358,47 @@ def tela_dashboard():
     
     g1, g2 = st.columns(2)
     with g1:
-        st.markdown('<div class="panel"><div class="panel-title">Status de Operação Global</div>', unsafe_allow_html=True)
-        fig = px.pie(
-            df, names='status', hole=0.70, color='status',
-            color_discrete_map={'NORMAL': '#10B981', 'ATENÇÃO': '#F59E0B', 'FALHA IMINENTE': '#EF4444', 'APRENDIZADO': '#3B82F6'}
-        )
-        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=320, showlegend=True)
-        st.plotly_chart(fig, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+        with st.container(key="painel_status"):
+            st.markdown('<div class="panel-title">Status de Operação Global</div>', unsafe_allow_html=True)
+            fig = px.pie(
+                df, names='status', hole=0.70, color='status',
+                color_discrete_map={'NORMAL': '#10B981', 'ATENÇÃO': '#F59E0B', 'FALHA IMINENTE': '#EF4444', 'APRENDIZADO': '#3B82F6'}
+            )
+            fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=320, showlegend=True)
+            st.plotly_chart(fig, use_container_width=True)
         
     with g2:
-        st.markdown('<div class="panel"><div class="panel-title">Índice de Saúde por Ativo</div>', unsafe_allow_html=True)
-        df_sorted = df.sort_values(by='health_score', ascending=True)
-        fig2 = px.bar(
-            df_sorted, x='health_score', y='nome_identificacao', orientation='h', color='health_score',
-            color_continuous_scale=['#EF4444', '#F59E0B', '#10B981'], range_color=[0, 100]
-        )
-        fig2.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=320, xaxis_title="Health Score %", yaxis_title="", coloraxis_showscale=False)
-        st.plotly_chart(fig2, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+        with st.container(key="painel_saude"):
+            st.markdown('<div class="panel-title">Índice de Saúde por Ativo</div>', unsafe_allow_html=True)
+            df_sorted = df.sort_values(by='health_score', ascending=True)
+            fig2 = px.bar(
+                df_sorted, x='health_score', y='nome_identificacao', orientation='h', color='health_score',
+                color_continuous_scale=['#EF4444', '#F59E0B', '#10B981'], range_color=[0, 100]
+            )
+            fig2.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=320, xaxis_title="Health Score %", yaxis_title="", coloraxis_showscale=False)
+            st.plotly_chart(fig2, use_container_width=True)
         
     t1, t2 = st.columns([7, 3])
     with t1:
-        st.markdown('<div class="panel"><div class="panel-title">Frota de Cilindros Ativos</div>', unsafe_allow_html=True)
-        html_table = """<table class="custom-table"><thead><tr>
-            <th>Identificação</th><th>Tag CLP</th><th>ID Sensor</th><th>Avanço</th><th>Retorno</th><th>Vibração</th><th>Saúde</th><th>Status</th>
-        </tr></thead><tbody>"""
-        for _, r in df.iterrows():
-            badge_color = "#10B981" if r['status']=='NORMAL' else ("#F59E0B" if r['status']=='ATENÇÃO' else ("#EF4444" if r['status']=='FALHA IMINENTE' else "#3B82F6"))
-            html_table += f"""<tr>
-                <td><b>{r['nome_identificacao']}</b></td>
-                <td><span style="font-family:monospace; color:#8CA0B8;">{r['tag_clp_vinculada']}</span></td>
-                <td><span style="font-family:monospace; color:#8CA0B8;">{r['id_sensor_vinculado']}</span></td>
-                <td>{r['tempo_avanco_ms']} ms</td>
-                <td>{r['tempo_retorno_ms']} ms</td>
-                <td>{r['vibracao_rms']} mm/s</td>
-                <td><b>{r['health_score']}%</b></td>
-                <td><span style="color:{badge_color}; font-weight:600;">{r['status']}</span></td>
-            </tr>"""
-        html_table += "</tbody></table></div>"
-        st.markdown(html_table, unsafe_allow_html=True)
+        with st.container(key="painel_frota"):
+            st.markdown('<div class="panel-title">Frota de Cilindros Ativos</div>', unsafe_allow_html=True)
+            html_table = """<table class="custom-table"><thead><tr>
+                <th>Identificação</th><th>Tag CLP</th><th>ID Sensor</th><th>Avanço</th><th>Retorno</th><th>Vibração</th><th>Saúde</th><th>Status</th>
+            </tr></thead><tbody>"""
+            for _, r in df.iterrows():
+                badge_color = "#10B981" if r['status']=='NORMAL' else ("#F59E0B" if r['status']=='ATENÇÃO' else ("#EF4444" if r['status']=='FALHA IMINENTE' else "#3B82F6"))
+                html_table += f"""<tr>
+                    <td><b>{r['nome_identificacao']}</b></td>
+                    <td><span style="font-family:monospace; color:#8CA0B8;">{r['tag_clp_vinculada']}</span></td>
+                    <td><span style="font-family:monospace; color:#8CA0B8;">{r['id_sensor_vinculado']}</span></td>
+                    <td>{r['tempo_avanco_ms']} ms</td>
+                    <td>{r['tempo_retorno_ms']} ms</td>
+                    <td>{r['vibracao_rms']} mm/s</td>
+                    <td><b>{r['health_score']}%</b></td>
+                    <td><span style="color:{badge_color}; font-weight:600;">{r['status']}</span></td>
+                </tr>"""
+            html_table += "</tbody></table>"
+            st.markdown(html_table, unsafe_allow_html=True)
         
     with t2:
         st.markdown('<div class="panel"><div class="panel-title">Eventos de Borda IIoT</div>', unsafe_allow_html=True)
@@ -368,53 +486,51 @@ def tela_diagnostico():
         c2.metric("Condição Logística", ativo['estado_integridade'])
         c3.metric("Status Operacional", ativo['status'])
 
-    # Histórico Ciclo a Ciclo com limitação estrita de buffer (Evita ResourceExhausted)
-    st.markdown('<div class="panel"><div class="panel-title">Histórico de Séries Temporais Ciclo a Ciclo</div>', unsafe_allow_html=True)
-    
-    clp_stream = db.collection('telemetria_clp').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(150).stream()
-    df_clp_h = pd.DataFrame([d.to_dict() for d in clp_stream])
-    
-    vib_stream = db.collection('telemetria_vib').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(150).stream()
-    df_vib_h = pd.DataFrame([d.to_dict() for d in vib_stream])
-    
-    if not df_clp_h.empty and 'tag_clp' in df_clp_h.columns:
-        df_clp_h = df_clp_h[df_clp_h['tag_clp'] == tag].head(30).reset_index(drop=True)
+    with st.container(key="painel_historico"):
+        st.markdown('<div class="panel-title">Histórico de Séries Temporais Ciclo a Ciclo</div>', unsafe_allow_html=True)
         
-    if not df_vib_h.empty and 'id_sensor' in df_vib_h.columns:
-        df_vib_h = df_vib_h[df_vib_h['id_sensor'] == sensor].head(30).reset_index(drop=True)
+        clp_stream = db.collection('telemetria_clp').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(150).stream()
+        df_clp_h = pd.DataFrame([d.to_dict() for d in clp_stream])
         
-    if not df_clp_h.empty and not df_vib_h.empty and 'total_cycles' in df_clp_h.columns:
-        min_len = min(len(df_clp_h), len(df_vib_h))
-        df_hist = pd.concat([df_clp_h.iloc[:min_len], df_vib_h.get(['vibracao_rms']).iloc[:min_len]], axis=1)
-        df_hist = df_hist.iloc[::-1].reset_index(drop=True)
+        vib_stream = db.collection('telemetria_vib').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(150).stream()
+        df_vib_h = pd.DataFrame([d.to_dict() for d in vib_stream])
         
-        fig_line = make_subplots(secondary_y=True)
-        fig_line.add_trace(go.Scatter(x=df_hist['total_cycles'], y=df_hist['tempo_avanco_ms'], name="Tempo Avanço (ms)", line=dict(color='#3B82F6', width=2)), secondary_y=False)
-        fig_line.add_trace(go.Scatter(x=df_hist['total_cycles'], y=df_hist['tempo_retorno_ms'], name="Tempo Retorno (ms)", line=dict(color='#F59E0B', width=2)), secondary_y=False)
-        fig_line.add_trace(go.Scatter(x=df_hist['total_cycles'], y=df_hist['vibracao_rms'], name="Vibração (mm/s)", line=dict(color='#10B981', width=1.5, dash='dot')), secondary_y=True)
-        
-        b_av = ativo['baseline_avanco_ms']
-        b_ret = ativo['baseline_retorno_ms']
-        if b_av > 0:
-            fig_line.add_hline(y=b_av, line_dash="dash", line_color="rgba(59, 130, 246, 0.4)", annotation_text="Base Av.")
-            fig_line.add_hline(y=b_av * 1.30, line_dash="solid", line_color="rgba(239, 68, 68, 0.4)", annotation_text="+30%")
-            fig_line.add_hline(y=b_av * 0.80, line_dash="solid", line_color="rgba(239, 68, 68, 0.4)", annotation_text="-20%")
-        if b_ret > 0:
-            fig_line.add_hline(y=b_ret, line_dash="dash", line_color="rgba(245, 158, 11, 0.4)", annotation_text="Base Ret.")
+        if not df_clp_h.empty and 'tag_clp' in df_clp_h.columns:
+            df_clp_h = df_clp_h[df_clp_h['tag_clp'] == tag].head(30).reset_index(drop=True)
+            
+        if not df_vib_h.empty and 'id_sensor' in df_vib_h.columns:
+            df_vib_h = df_vib_h[df_vib_h['id_sensor'] == sensor].head(30).reset_index(drop=True)
+            
+        if not df_clp_h.empty and not df_vib_h.empty and 'total_cycles' in df_clp_h.columns:
+            min_len = min(len(df_clp_h), len(df_vib_h))
+            df_hist = pd.concat([df_clp_h.iloc[:min_len], df_vib_h.get(['vibracao_rms']).iloc[:min_len]], axis=1)
+            df_hist = df_hist.iloc[::-1].reset_index(drop=True)
+            
+            fig_line = make_subplots(secondary_y=True)
+            fig_line.add_trace(go.Scatter(x=df_hist['total_cycles'], y=df_hist['tempo_avanco_ms'], name="Tempo Avanço (ms)", line=dict(color='#3B82F6', width=2)), secondary_y=False)
+            fig_line.add_trace(go.Scatter(x=df_hist['total_cycles'], y=df_hist['tempo_retorno_ms'], name="Tempo Retorno (ms)", line=dict(color='#F59E0B', width=2)), secondary_y=False)
+            fig_line.add_trace(go.Scatter(x=df_hist['total_cycles'], y=df_hist['vibracao_rms'], name="Vibração (mm/s)", line=dict(color='#10B981', width=1.5, dash='dot')), secondary_y=True)
+            
+            b_av = ativo['baseline_avanco_ms']
+            b_ret = ativo['baseline_retorno_ms']
+            if b_av > 0:
+                fig_line.add_hline(y=b_av, line_dash="dash", line_color="rgba(59, 130, 246, 0.4)", annotation_text="Base Av.")
+                fig_line.add_hline(y=b_av * 1.30, line_dash="solid", line_color="rgba(239, 68, 68, 0.4)", annotation_text="+30%")
+                fig_line.add_hline(y=b_av * 0.80, line_dash="solid", line_color="rgba(239, 68, 68, 0.4)", annotation_text="-20%")
+            if b_ret > 0:
+                fig_line.add_hline(y=b_ret, line_dash="dash", line_color="rgba(245, 158, 11, 0.4)", annotation_text="Base Ret.")
 
-        fig_line.update_layout(
-            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=350,
-            xaxis_title="Sequência de Ciclos (Contador CLP)", yaxis_title="Tempo (ms)", yaxis2_title="Vibração (mm/s)",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-        )
-        st.plotly_chart(fig_line, use_container_width=True)
-    else:
-        st.info("Aguardando sincronização de buffers de histórico...")
-    st.markdown("</div>", unsafe_allow_html=True)
+            fig_line.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=350,
+                xaxis_title="Sequência de Ciclos (Contador CLP)", yaxis_title="Tempo (ms)", yaxis2_title="Vibração (mm/s)",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            st.plotly_chart(fig_line, use_container_width=True)
+        else:
+            st.info("Aguardando sincronização de buffers de histórico...")
         
     st.markdown("### Painel de Intervenção e Comandos Remotos")
     
-    # Estruturação nativa dos comandos de manutenção
     with st.container():
         a1, a2, a3 = st.columns(3)
         
@@ -445,6 +561,17 @@ def tela_diagnostico():
                 st.error("Alerta de quebra propagado para a planta.")
 
 # =========================================================
+# HELPER COMPONENTS
+# =========================================================
+def render_kpi(titulo, valor, classe):
+    st.markdown(f"""
+    <div class="kpi-card {classe}">
+        <div class="kpi-title">{titulo}</div>
+        <div class="kpi-value">{valor}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# =========================================================
 # MENUS & NAVEGAÇÃO
 # =========================================================
 with st.sidebar:
@@ -468,6 +595,7 @@ with st.sidebar:
         }
     )
 
+# Escopo isolado de execução
 if menu == "Dashboard":
     tela_dashboard()
     time.sleep(4.0)
