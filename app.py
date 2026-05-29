@@ -135,7 +135,7 @@ html, body, [class*="css"] {
 .kpi-red { border-left: 4px solid #EF4444; }
 .kpi-yellow { border-left: 4px solid #F59E0B; }
 
-/* ESTILIZAÇÃO VIA DATA-KEY (MANTÉM O DOM SEGURO) */
+/* REQUISITOS DE CONTAINER SEM QUEBRA */
 div[data-key="painel_status"], 
 div[data-key="painel_saude"], 
 div[data-key="painel_frota"], 
@@ -265,20 +265,25 @@ def obter_ativos_consolidados():
         b_retorno = ativo.get('baseline_retorno_ms', 0.0)
         aprendizado_concluido = ativo.get('modo_aprendizado_concluido', False)
         
+        # SOLUÇÃO BYPASS ÍNDICE COMPOSTO: Filtra na memória via Pandas
         if ciclos >= 100 and not aprendizado_concluido:
-            historico_baseline = db.collection('telemetria_clp')\
-                                   .where('tag_clp', '==', tag)\
-                                   .order_by('timestamp', direction=firestore.Query.DESCENDING)\
-                                   .limit(10)\
-                                   .stream()
-            pontos = [d.to_dict() for d in historico_baseline]
-            if pontos:
-                df_pontos = pd.DataFrame(pontos)
-                b_avanco = round(df_pontos['tempo_avanco_ms'].mean(), 1)
-                b_retorno = round(df_pontos['tempo_retorno_ms'].mean(), 1)
+            historico_stream = db.collection('telemetria_clp')\
+                                 .order_by('timestamp', direction=firestore.Query.DESCENDING)\
+                                 .limit(200)\
+                                 .stream()
+            all_pontos = [d.to_dict() for d in historico_stream]
+            
+            if all_pontos:
+                df_all_p = pd.DataFrame(all_pontos)
+                df_filtrado = df_all_p[df_all_p['tag_clp'] == tag].head(10)
+                
+                if not df_filtrado.empty:
+                    b_avanco = round(df_filtrado['tempo_avanco_ms'].mean(), 1)
+                    b_retorno = round(df_filtrado['tempo_retorno_ms'].mean(), 1)
+                else:
+                    b_avanco, b_retorno = t_avanco, t_retorno
             else:
-                b_avanco = t_avanco
-                b_retorno = t_retorno
+                b_avanco, b_retorno = t_avanco, t_retorno
                 
             aprendizado_concluido = True
             atualizar_status_cilindro(ativo['id_documento'], {
@@ -498,7 +503,7 @@ def tela_diagnostico():
         if not df_clp_h.empty and 'tag_clp' in df_clp_h.columns:
             df_clp_h = df_clp_h[df_clp_h['tag_clp'] == tag].head(30).reset_index(drop=True)
             
-        if not df_vib_h.empty and 'id_sensor' in df_vib_h.columns:
+        if not df_vib_h.empty && 'id_sensor' in df_vib_h.columns:
             df_vib_h = df_vib_h[df_vib_h['id_sensor'] == sensor].head(30).reset_index(drop=True)
             
         if not df_clp_h.empty and not df_vib_h.empty and 'total_cycles' in df_clp_h.columns:
@@ -595,7 +600,6 @@ with st.sidebar:
         }
     )
 
-# Escopo isolado de execução
 if menu == "Dashboard":
     tela_dashboard()
     time.sleep(4.0)
